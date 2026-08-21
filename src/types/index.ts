@@ -11,4 +11,5 @@ export interface Album {
   cd: boolean;
   vinyl: boolean;
   notes: string;
+  cover_url: string;
 }
