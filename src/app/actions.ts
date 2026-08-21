@@ -3,11 +3,14 @@
 import { supabase } from '@/lib/supabase';
 import { Album, Scope } from '@/types';
 
-/**
- * Fetches all albums from the Supabase database.
- * Sorted by created_at descending so newly added albums appear first.
- */
-export async function getAlbums(): Promise<{ success: boolean; data: Album[]; error?: string }> {
+// ─────────────────────────────────────────────
+//  GET ALL ALBUMS
+// ─────────────────────────────────────────────
+export async function getAlbums(): Promise<{
+  success: boolean;
+  data: Album[];
+  error?: string;
+}> {
   try {
     const { data, error } = await supabase
       .from('albums')
@@ -15,18 +18,20 @@ export async function getAlbums(): Promise<{ success: boolean; data: Album[]; er
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching albums from Supabase:', error);
+      console.error('Error fetching albums:', error);
       return { success: false, data: [], error: error.message };
     }
 
     return { success: true, data: (data as Album[]) || [] };
   } catch (err: any) {
-    console.error('Unexpected error fetching albums:', err);
-    return { success: false, data: [], error: err.message || 'An unexpected error occurred.' };
+    return { success: false, data: [], error: err.message || 'Unexpected error.' };
   }
 }
 
-interface NewAlbumInput {
+// ─────────────────────────────────────────────
+//  ADD ALBUM
+// ─────────────────────────────────────────────
+interface AlbumInput {
   artist: string;
   album_title: string;
   year?: string;
@@ -35,91 +40,96 @@ interface NewAlbumInput {
   cd: boolean;
   vinyl: boolean;
   notes?: string;
+  cover_url?: string;
 }
 
-/**
- * Adds a new album to the Supabase database.
- */
-export async function addAlbum(input: NewAlbumInput): Promise<{ success: boolean; data?: Album; error?: string }> {
+export async function addAlbum(
+  input: AlbumInput
+): Promise<{ success: boolean; data?: Album; error?: string }> {
   try {
-    // Basic validation
-    if (!input.artist.trim()) {
-      return { success: false, error: 'Artist name is required.' };
-    }
-    if (!input.album_title.trim()) {
-      return { success: false, error: 'Album title is required.' };
-    }
+    if (!input.artist.trim())       return { success: false, error: 'Artist name is required.' };
+    if (!input.album_title.trim())  return { success: false, error: 'Album title is required.' };
 
     const { data, error } = await supabase
       .from('albums')
-      .insert([
-        {
-          artist: input.artist.trim(),
-          album_title: input.album_title.trim(),
-          year: input.year?.trim() || '',
-          scope: input.scope,
-          digital: input.digital,
-          cd: input.cd,
-          vinyl: input.vinyl,
-          notes: input.notes?.trim() || '',
-        },
-      ])
+      .insert([{
+        artist:       input.artist.trim(),
+        album_title:  input.album_title.trim(),
+        year:         input.year?.trim() || '',
+        scope:        input.scope,
+        digital:      input.digital,
+        cd:           input.cd,
+        vinyl:        input.vinyl,
+        notes:        input.notes?.trim() || '',
+        cover_url:    input.cover_url?.trim() || '',
+      }])
       .select()
       .single();
 
-    if (error) {
-      console.error('Error inserting album to Supabase:', error);
-      return { success: false, error: error.message };
-    }
-
+    if (error) return { success: false, error: error.message };
     return { success: true, data: data as Album };
   } catch (err: any) {
-    console.error('Unexpected error adding album:', err);
-    return { success: false, error: err.message || 'An unexpected error occurred.' };
+    return { success: false, error: err.message || 'Unexpected error.' };
   }
 }
 
-/**
- * Updates an existing album in the Supabase database.
- */
+// ─────────────────────────────────────────────
+//  UPDATE ALBUM
+// ─────────────────────────────────────────────
 export async function updateAlbum(
   id: string,
-  input: Partial<NewAlbumInput>
+  input: Partial<AlbumInput>
 ): Promise<{ success: boolean; data?: Album; error?: string }> {
   try {
-    // Basic validation if fields are provided
-    if (input.artist !== undefined && !input.artist.trim()) {
+    if (input.artist !== undefined && !input.artist.trim())
       return { success: false, error: 'Artist name is required.' };
-    }
-    if (input.album_title !== undefined && !input.album_title.trim()) {
+    if (input.album_title !== undefined && !input.album_title.trim())
       return { success: false, error: 'Album title is required.' };
-    }
 
-    const updateData: any = {};
-    if (input.artist !== undefined) updateData.artist = input.artist.trim();
-    if (input.album_title !== undefined) updateData.album_title = input.album_title.trim();
-    if (input.year !== undefined) updateData.year = input.year.trim();
-    if (input.scope !== undefined) updateData.scope = input.scope;
-    if (input.digital !== undefined) updateData.digital = input.digital;
-    if (input.cd !== undefined) updateData.cd = input.cd;
-    if (input.vinyl !== undefined) updateData.vinyl = input.vinyl;
-    if (input.notes !== undefined) updateData.notes = input.notes.trim();
+    const patch: Record<string, any> = {};
+    if (input.artist      !== undefined) patch.artist      = input.artist.trim();
+    if (input.album_title !== undefined) patch.album_title = input.album_title.trim();
+    if (input.year        !== undefined) patch.year        = input.year.trim();
+    if (input.scope       !== undefined) patch.scope       = input.scope;
+    if (input.digital     !== undefined) patch.digital     = input.digital;
+    if (input.cd          !== undefined) patch.cd          = input.cd;
+    if (input.vinyl       !== undefined) patch.vinyl       = input.vinyl;
+    if (input.notes       !== undefined) patch.notes       = input.notes.trim();
+    if (input.cover_url   !== undefined) patch.cover_url   = input.cover_url.trim();
 
     const { data, error } = await supabase
       .from('albums')
-      .update(updateData)
+      .update(patch)
       .eq('id', id)
       .select()
       .single();
 
-    if (error) {
-      console.error('Error updating album in Supabase:', error);
-      return { success: false, error: error.message };
-    }
-
+    if (error) return { success: false, error: error.message };
     return { success: true, data: data as Album };
   } catch (err: any) {
-    console.error('Unexpected error updating album:', err);
-    return { success: false, error: err.message || 'An unexpected error occurred.' };
+    return { success: false, error: err.message || 'Unexpected error.' };
+  }
+}
+
+// ─────────────────────────────────────────────
+//  CACHE COVER URL (background write)
+// ─────────────────────────────────────────────
+/**
+ * Called automatically by AlbumCard after a successful API artwork fetch.
+ * Silently writes the resolved URL to cover_url so it's never re-fetched.
+ */
+export async function saveCoverUrl(
+  id: string,
+  cover_url: string
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('albums')
+      .update({ cover_url })
+      .eq('id', id);
+
+    if (error) console.error('Failed to cache cover_url:', error.message);
+  } catch (err: any) {
+    console.error('Unexpected error caching cover_url:', err.message);
   }
 }

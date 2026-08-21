@@ -20,6 +20,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
   const [cd, setCd] = useState(false);
   const [vinyl, setVinyl] = useState(false);
   const [notes, setNotes] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
       setCd(false);
       setVinyl(false);
       setNotes('');
+      setCoverUrl('');
       setError(null);
     }
   }, [isOpen]);
@@ -56,15 +58,8 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
     e.preventDefault();
     setError(null);
 
-    // Basic client-side validation
-    if (!artist.trim()) {
-      setError('Artist name is required.');
-      return;
-    }
-    if (!albumTitle.trim()) {
-      setError('Album title is required.');
-      return;
-    }
+    if (!artist.trim()) { setError('Artist name is required.'); return; }
+    if (!albumTitle.trim()) { setError('Album title is required.'); return; }
 
     setIsLoading(true);
     try {
@@ -77,6 +72,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
         cd,
         vinyl,
         notes,
+        cover_url: coverUrl,
       });
 
       if (!response.success || !response.data) {
