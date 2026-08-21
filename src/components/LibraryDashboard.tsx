@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Search, Plus, FilterX, HelpCircle, AlertCircle } from 'lucide-react';
-import { Album, Scope, MasteringStatus } from '@/types';
+import { Album, Scope } from '@/types';
 import StatsBar from './StatsBar';
 import AlbumCard from './AlbumCard';
 import AddAlbumModal from './AddAlbumModal';
@@ -15,22 +15,32 @@ interface LibraryDashboardProps {
 export default function LibraryDashboard({ initialAlbums, dbError }: LibraryDashboardProps) {
   const [albums, setAlbums] = useState<Album[]>(initialAlbums);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [selectedScope, setSelectedScope] = useState<string>('ALL');
+  const [selectedFormat, setSelectedFormat] = useState<string>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Compute filtered albums
+  // Compute filtered albums based on the new schema and filters
   const filteredAlbums = albums.filter((album) => {
     const matchesSearch =
       album.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
       album.album_title.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus =
-      selectedStatus === 'ALL' || album.mastering_status === selectedStatus;
-
     const matchesScope = selectedScope === 'ALL' || album.scope === selectedScope;
 
-    return matchesSearch && matchesStatus && matchesScope;
+    let matchesFormat = true;
+    if (selectedFormat === 'DIGITAL') {
+      matchesFormat = album.digital;
+    } else if (selectedFormat === 'CD') {
+      matchesFormat = album.cd;
+    } else if (selectedFormat === 'VINYL') {
+      matchesFormat = album.vinyl;
+    } else if (selectedFormat === 'PHYSICAL') {
+      matchesFormat = album.cd || album.vinyl;
+    } else if (selectedFormat === 'DIGITAL_ONLY') {
+      matchesFormat = album.digital && !album.cd && !album.vinyl;
+    }
+
+    return matchesSearch && matchesScope && matchesFormat;
   });
 
   const handleAlbumAdded = (newAlbum: Album) => {
@@ -39,11 +49,11 @@ export default function LibraryDashboard({ initialAlbums, dbError }: LibraryDash
 
   const handleClearFilters = () => {
     setSearchQuery('');
-    setSelectedStatus('ALL');
     setSelectedScope('ALL');
+    setSelectedFormat('ALL');
   };
 
-  const hasActiveFilters = searchQuery !== '' || selectedStatus !== 'ALL' || selectedScope !== 'ALL';
+  const hasActiveFilters = searchQuery !== '' || selectedScope !== 'ALL' || selectedFormat !== 'ALL';
 
   return (
     <div className="space-y-6">
@@ -65,7 +75,7 @@ export default function LibraryDashboard({ initialAlbums, dbError }: LibraryDash
       <div className="flex items-center justify-between gap-4 pb-4 border-b border-zinc-900">
         <div>
           <h1 className="text-xl font-bold text-zinc-100 tracking-tight">Audio Library</h1>
-          <p className="text-xs text-zinc-500 mt-1">Manage, audit, and analyze your album masters</p>
+          <p className="text-xs text-zinc-550 mt-1">Manage and audit your album formats spreadsheet archive</p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
@@ -112,18 +122,20 @@ export default function LibraryDashboard({ initialAlbums, dbError }: LibraryDash
               </select>
             </div>
 
-            {/* Mastering Status Filter */}
+            {/* Format Filter */}
             <div className="w-full sm:w-48 flex flex-col gap-1">
               <select
-                id="filter-mastering"
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                id="filter-format"
+                value={selectedFormat}
+                onChange={(e) => setSelectedFormat(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-800 text-zinc-350 text-sm rounded px-3 py-2 outline-none focus:border-zinc-700 transition-colors"
               >
-                <option value="ALL">All Master Statuses</option>
-                <option value="CD/Digital Match">CD/Digital Match</option>
-                <option value="Other Master Superior">Other Master Superior</option>
-                <option value="Needs Research">Needs Research</option>
+                <option value="ALL">All Formats</option>
+                <option value="DIGITAL">Digital</option>
+                <option value="CD">CD</option>
+                <option value="VINYL">Vinyl</option>
+                <option value="PHYSICAL">Physical Only (CD/Vinyl)</option>
+                <option value="DIGITAL_ONLY">Digital Only</option>
               </select>
             </div>
 
@@ -131,7 +143,7 @@ export default function LibraryDashboard({ initialAlbums, dbError }: LibraryDash
             {hasActiveFilters && (
               <button
                 onClick={handleClearFilters}
-                className="bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 hover:text-zinc-200 text-zinc-400 px-3 py-2 rounded text-sm flex items-center justify-center gap-1.5 transition-colors"
+                className="bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 hover:text-zinc-200 text-zinc-450 px-3 py-2 rounded text-sm flex items-center justify-center gap-1.5 transition-colors"
                 title="Clear all filters"
               >
                 <FilterX className="w-4 h-4" />
@@ -153,7 +165,7 @@ export default function LibraryDashboard({ initialAlbums, dbError }: LibraryDash
         <div className="border border-dashed border-zinc-800/80 rounded-xl p-12 text-center flex flex-col items-center justify-center bg-zinc-900/10">
           {hasActiveFilters ? (
             <>
-              <FilterX className="w-10 h-10 text-zinc-600 mb-3" />
+              <FilterX className="w-10 h-10 text-zinc-650 mb-3" />
               <h3 className="text-base font-semibold text-zinc-300">No results found</h3>
               <p className="text-xs text-zinc-550 mt-1 max-w-sm">
                 No albums match your search query and selected filter options. Try resetting your filters.
@@ -167,7 +179,7 @@ export default function LibraryDashboard({ initialAlbums, dbError }: LibraryDash
             </>
           ) : (
             <>
-              <HelpCircle className="w-10 h-10 text-zinc-600 mb-3" />
+              <HelpCircle className="w-10 h-10 text-zinc-650 mb-3" />
               <h3 className="text-base font-semibold text-zinc-300">Your library is empty</h3>
               <p className="text-xs text-zinc-550 mt-1 max-w-xs">
                 To build your production library, begin by adding your first album record.

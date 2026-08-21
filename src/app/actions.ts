@@ -1,7 +1,7 @@
 'use server';
 
 import { supabase } from '@/lib/supabase';
-import { Album, Scope, MasteringStatus } from '@/types';
+import { Album, Scope } from '@/types';
 
 /**
  * Fetches all albums from the Supabase database.
@@ -31,7 +31,10 @@ interface NewAlbumInput {
   album_title: string;
   year?: string;
   scope: Scope;
-  mastering_status: MasteringStatus;
+  digital: boolean;
+  cd: boolean;
+  vinyl: boolean;
+  notes?: string;
 }
 
 /**
@@ -55,7 +58,10 @@ export async function addAlbum(input: NewAlbumInput): Promise<{ success: boolean
           album_title: input.album_title.trim(),
           year: input.year?.trim() || '',
           scope: input.scope,
-          mastering_status: input.mastering_status,
+          digital: input.digital,
+          cd: input.cd,
+          vinyl: input.vinyl,
+          notes: input.notes?.trim() || '',
         },
       ])
       .select()

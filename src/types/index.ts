@@ -1,10 +1,5 @@
 export type Scope = 'Full' | 'Partial' | 'Few' | 'Single';
 
-export type MasteringStatus = 
-  | 'CD/Digital Match' 
-  | 'Other Master Superior' 
-  | 'Needs Research';
-
 export interface Album {
   id: string;
   created_at: string;
@@ -12,5 +7,8 @@ export interface Album {
   album_title: string;
   year: string;
   scope: Scope;
-  mastering_status: MasteringStatus;
+  digital: boolean;
+  cd: boolean;
+  vinyl: boolean;
+  notes: string;
 }

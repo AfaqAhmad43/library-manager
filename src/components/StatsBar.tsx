@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Music, AlertCircle, Disc } from 'lucide-react';
+import { Music, Disc, FileAudio } from 'lucide-react';
 import { Album } from '@/types';
 
 interface StatsBarProps {
@@ -11,12 +11,14 @@ interface StatsBarProps {
 export default function StatsBar({ albums }: StatsBarProps) {
   const totalAlbums = albums.length;
   
-  const needsResearchCount = albums.filter(
-    (album) => album.mastering_status === 'Needs Research'
+  // Calculate physical albums (has CD or Vinyl or both checked)
+  const physicalCount = albums.filter(
+    (album) => album.cd || album.vinyl
   ).length;
 
-  const matchedMastersCount = albums.filter(
-    (album) => album.mastering_status === 'CD/Digital Match'
+  // Calculate digital albums
+  const digitalCount = albums.filter(
+    (album) => album.digital
   ).length;
 
   return (
@@ -32,25 +34,25 @@ export default function StatsBar({ albums }: StatsBarProps) {
         </div>
       </div>
 
-      {/* Items Needing Research */}
+      {/* Physical Holdings (CD/Vinyl) */}
       <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-lg p-4 flex items-center justify-between shadow-sm">
         <div>
-          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Needs Research</p>
-          <p className="text-3xl font-bold text-amber-500 mt-1 tracking-tight">{needsResearchCount}</p>
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Physical Media</p>
+          <p className="text-3xl font-bold text-violet-500 mt-1 tracking-tight">{physicalCount}</p>
         </div>
-        <div className="p-3 bg-amber-950/20 border border-amber-900/30 rounded-lg text-amber-500">
-          <AlertCircle className="w-5 h-5" />
+        <div className="p-3 bg-violet-950/20 border border-violet-900/30 rounded-lg text-violet-400">
+          <Disc className="w-5 h-5" />
         </div>
       </div>
 
-      {/* Matched Masters */}
+      {/* Digital Holdings */}
       <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-lg p-4 flex items-center justify-between shadow-sm">
         <div>
-          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Matched Masters</p>
-          <p className="text-3xl font-bold text-emerald-500 mt-1 tracking-tight">{matchedMastersCount}</p>
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Digital Files</p>
+          <p className="text-3xl font-bold text-teal-500 mt-1 tracking-tight">{digitalCount}</p>
         </div>
-        <div className="p-3 bg-emerald-950/20 border border-emerald-900/30 rounded-lg text-emerald-500">
-          <Disc className="w-5 h-5" />
+        <div className="p-3 bg-teal-950/20 border border-teal-900/30 rounded-lg text-teal-400">
+          <FileAudio className="w-5 h-5" />
         </div>
       </div>
     </div>

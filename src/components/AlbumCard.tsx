@@ -1,42 +1,29 @@
 'use client';
 
 import React from 'react';
-import { Calendar, Disc, Layers } from 'lucide-react';
-import { Album, MasteringStatus } from '@/types';
+import { Calendar, Layers } from 'lucide-react';
+import { Album } from '@/types';
 
 interface AlbumCardProps {
   album: Album;
 }
 
 export default function AlbumCard({ album }: AlbumCardProps) {
-  // Get color styles based on Mastering Status
-  const getStatusBadgeStyle = (status: MasteringStatus) => {
-    switch (status) {
-      case 'CD/Digital Match':
-        return 'bg-emerald-950/30 text-emerald-400 border-emerald-900/50';
-      case 'Other Master Superior':
-        return 'bg-violet-950/30 text-violet-400 border-violet-900/50';
-      case 'Needs Research':
-      default:
-        return 'bg-amber-950/30 text-amber-400 border-amber-900/50';
-    }
-  };
-
   return (
     <div className="group bg-zinc-900/40 border border-zinc-800/80 hover:border-zinc-700/80 hover:bg-zinc-900/60 rounded-lg p-5 flex flex-col justify-between transition-all duration-200 h-full shadow-md backdrop-blur-sm">
+      {/* Title & Artist */}
       <div>
-        <div className="flex justify-between items-start gap-3">
-          <h3 className="text-base font-bold text-zinc-100 group-hover:text-white transition-colors duration-150 tracking-tight leading-snug line-clamp-2">
-            {album.album_title}
-          </h3>
-        </div>
+        <h3 className="text-base font-bold text-zinc-100 group-hover:text-white transition-colors duration-150 tracking-tight leading-snug line-clamp-2">
+          {album.album_title}
+        </h3>
         <p className="text-sm font-medium text-zinc-400 mt-1 line-clamp-1">
           {album.artist}
         </p>
       </div>
 
-      <div className="mt-5 pt-4 border-t border-zinc-800/60 space-y-3">
-        <div className="flex items-center justify-between text-xs text-zinc-500">
+      <div className="mt-5 space-y-4">
+        {/* Year and Scope Info */}
+        <div className="flex items-center justify-between text-xs text-zinc-500 pt-3 border-t border-zinc-850">
           <div className="flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-zinc-600" />
             <span className="font-mono">{album.year || 'N/A'}</span>
@@ -49,18 +36,48 @@ export default function AlbumCard({ album }: AlbumCardProps) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">
-            Mastering
-          </span>
-          <span
-            className={`text-xs font-semibold px-2.5 py-1 rounded border ${getStatusBadgeStyle(
-              album.mastering_status
-            )}`}
-          >
-            {album.mastering_status}
-          </span>
+        {/* Read-Only Format Checkboxes */}
+        <div className="flex items-center justify-between py-1.5 bg-zinc-950/30 border border-zinc-850/60 rounded px-2.5">
+          <label className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 cursor-default select-none">
+            <input
+              type="checkbox"
+              checked={album.digital}
+              readOnly
+              className="w-3.5 h-3.5 rounded bg-zinc-950 border-zinc-800 text-zinc-200 focus:ring-0 focus:ring-offset-0 pointer-events-none accent-zinc-200"
+            />
+            Digital
+          </label>
+
+          <label className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 cursor-default select-none">
+            <input
+              type="checkbox"
+              checked={album.cd}
+              readOnly
+              className="w-3.5 h-3.5 rounded bg-zinc-950 border-zinc-800 text-zinc-200 focus:ring-0 focus:ring-offset-0 pointer-events-none accent-zinc-200"
+            />
+            CD
+          </label>
+
+          <label className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 cursor-default select-none">
+            <input
+              type="checkbox"
+              checked={album.vinyl}
+              readOnly
+              className="w-3.5 h-3.5 rounded bg-zinc-950 border-zinc-800 text-zinc-200 focus:ring-0 focus:ring-offset-0 pointer-events-none accent-zinc-200"
+            />
+            Vinyl
+          </label>
         </div>
+
+        {/* Album Notes */}
+        {album.notes && (
+          <div 
+            className="pt-3 border-t border-zinc-850 text-xs text-zinc-500 italic leading-relaxed line-clamp-3"
+            title={album.notes}
+          >
+            &ldquo;{album.notes}&rdquo;
+          </div>
+        )}
       </div>
     </div>
   );

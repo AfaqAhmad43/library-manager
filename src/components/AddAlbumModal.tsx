@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { addAlbum } from '@/app/actions';
-import { Album, Scope, MasteringStatus } from '@/types';
+import { Album, Scope } from '@/types';
 
 interface AddAlbumModalProps {
   isOpen: boolean;
@@ -16,7 +16,10 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
   const [albumTitle, setAlbumTitle] = useState('');
   const [year, setYear] = useState('');
   const [scope, setScope] = useState<Scope>('Full');
-  const [masteringStatus, setMasteringStatus] = useState<MasteringStatus>('Needs Research');
+  const [digital, setDigital] = useState(false);
+  const [cd, setCd] = useState(false);
+  const [vinyl, setVinyl] = useState(false);
+  const [notes, setNotes] = useState('');
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +42,10 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
       setAlbumTitle('');
       setYear('');
       setScope('Full');
-      setMasteringStatus('Needs Research');
+      setDigital(false);
+      setCd(false);
+      setVinyl(false);
+      setNotes('');
       setError(null);
     }
   }, [isOpen]);
@@ -67,7 +73,10 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
         album_title: albumTitle,
         year,
         scope,
-        mastering_status: masteringStatus,
+        digital,
+        cd,
+        vinyl,
+        notes,
       });
 
       if (!response.success || !response.data) {
@@ -108,7 +117,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
         </div>
 
         {/* Content / Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
           {error && (
             <div className="bg-red-950/20 border border-red-900/40 text-red-400 text-xs rounded p-3">
               {error}
@@ -126,7 +135,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
               value={artist}
               onChange={(e) => setArtist(e.target.value)}
               placeholder="e.g., Pink Floyd"
-              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-600 transition-colors placeholder:text-zinc-600"
+              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors placeholder:text-zinc-650"
               disabled={isLoading}
             />
           </div>
@@ -142,7 +151,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
               value={albumTitle}
               onChange={(e) => setAlbumTitle(e.target.value)}
               placeholder="e.g., The Dark Side of the Moon"
-              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-600 transition-colors placeholder:text-zinc-600"
+              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors placeholder:text-zinc-650"
               disabled={isLoading}
             />
           </div>
@@ -158,7 +167,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
                 placeholder="e.g., 1973"
-                className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-600 transition-colors placeholder:text-zinc-600"
+                className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors placeholder:text-zinc-650"
                 disabled={isLoading}
               />
             </div>
@@ -171,7 +180,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
                 id="scope"
                 value={scope}
                 onChange={(e) => setScope(e.target.value as Scope)}
-                className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-600 transition-colors"
+                className="w-full bg-zinc-950 border border-zinc-800 text-zinc-150 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors"
                 disabled={isLoading}
               >
                 <option value="Full">Full</option>
@@ -182,21 +191,61 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
             </div>
           </div>
 
+          {/* Formats Checkboxes */}
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
+              Format Holdings
+            </span>
+            <div className="grid grid-cols-3 gap-2 bg-zinc-950 border border-zinc-800 rounded p-3">
+              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={digital}
+                  onChange={(e) => setDigital(e.target.checked)}
+                  className="w-4 h-4 rounded bg-zinc-900 border-zinc-800 text-zinc-100 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-zinc-100"
+                  disabled={isLoading}
+                />
+                Digital
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={cd}
+                  onChange={(e) => setCd(e.target.checked)}
+                  className="w-4 h-4 rounded bg-zinc-900 border-zinc-800 text-zinc-100 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-zinc-100"
+                  disabled={isLoading}
+                />
+                CD
+              </label>
+
+              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={vinyl}
+                  onChange={(e) => setVinyl(e.target.checked)}
+                  className="w-4 h-4 rounded bg-zinc-900 border-zinc-800 text-zinc-100 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-zinc-100"
+                  disabled={isLoading}
+                />
+                Vinyl
+              </label>
+            </div>
+          </div>
+
+          {/* Notes Area */}
           <div className="space-y-1">
-            <label htmlFor="mastering_status" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Mastering Status
+            <label htmlFor="notes" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+              Notes
             </label>
-            <select
-              id="mastering_status"
-              value={masteringStatus}
-              onChange={(e) => setMasteringStatus(e.target.value as MasteringStatus)}
-              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-600 transition-colors"
+            <textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Enter mastering source, comments, or details..."
+              rows={3}
+              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors placeholder:text-zinc-650 resize-none"
               disabled={isLoading}
-            >
-              <option value="Needs Research">Needs Research</option>
-              <option value="CD/Digital Match">CD/Digital Match</option>
-              <option value="Other Master Superior">Other Master Superior</option>
-            </select>
+            />
           </div>
 
           {/* Action Buttons */}

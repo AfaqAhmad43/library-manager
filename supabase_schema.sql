@@ -1,12 +1,15 @@
--- Create the albums table
+-- Create the albums table matching the spreadsheet headers
 create table if not exists public.albums (
   id uuid default gen_random_uuid() primary key,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   artist text not null,
   album_title text not null,
-  year text, -- Stored as text to allow flexible entries (e.g., "1994", "2001/2002")
+  year text, -- e.g., "1994", "2001/2002"
   scope text not null default 'Full', -- e.g., Full, Partial, Few, Single
-  mastering_status text not null default 'Needs Research' -- e.g., CD/Digital Match, Other Master Superior, Needs Research
+  digital boolean not null default false,
+  cd boolean not null default false,
+  vinyl boolean not null default false,
+  notes text
 );
 
 -- Enable Row Level Security (RLS)
