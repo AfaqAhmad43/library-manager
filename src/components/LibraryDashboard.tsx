@@ -64,8 +64,13 @@ export default function LibraryDashboard({ initialAlbums, dbError }: LibraryDash
           <div className="text-sm">
             <p className="font-bold">Database Warning</p>
             <p className="mt-1">
-              Unable to connect to your Supabase instance. Showing empty state or local additions only.
-              Please check your environment variables in <code className="bg-zinc-950/60 px-1 py-0.5 rounded font-mono text-zinc-300">.env.local</code>.
+              Failed to connect or query Supabase. Details:
+            </p>
+            <code className="block mt-1.5 p-2 bg-zinc-950/70 rounded font-mono text-zinc-300 border border-zinc-850/50 break-all text-xs">
+              {dbError}
+            </code>
+            <p className="mt-2 text-xs text-zinc-500">
+              Please check your environment variables in <code className="bg-zinc-950/60 px-1 py-0.5 rounded font-mono text-zinc-400">.env.local</code> (or Vercel settings) and verify that you ran the SQL schema in the Supabase SQL Editor.
             </p>
           </div>
         </div>
