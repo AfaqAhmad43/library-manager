@@ -15,14 +15,16 @@ create table if not exists public.albums (
 -- Enable Row Level Security (RLS)
 alter table public.albums enable row level security;
 
--- Create policies to allow public read/write since this is a local app
+-- Policies to allow public read/write
 create policy "Allow public read access" on public.albums
   for select using (true);
 
 create policy "Allow public insert access" on public.albums
   for insert with check (true);
 
--- Explicitly grant SELECT and INSERT permissions to anon and authenticated roles
-grant usage on schema public to anon, authenticated;
-grant select, insert on table public.albums to anon, authenticated;
+create policy "Allow public update access" on public.albums
+  for update using (true) with check (true);
 
+-- Explicitly grant SELECT, INSERT, and UPDATE permissions to anon and authenticated roles
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on table public.albums to anon, authenticated;
