@@ -21,3 +21,8 @@ create policy "Allow public read access" on public.albums
 
 create policy "Allow public insert access" on public.albums
   for insert with check (true);
+
+-- Explicitly grant SELECT and INSERT permissions to anon and authenticated roles
+grant usage on schema public to anon, authenticated;
+grant select, insert on table public.albums to anon, authenticated;
+
