@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Check, Loader2, Link, ArrowRightLeft } from 'lucide-react';
+import { X, Check, Loader2, Link, ArrowRightLeft, Copy } from 'lucide-react';
 import { updateAlbum, moveAlbumToLibrary } from '@/app/actions';
 import { Album, Scope } from '@/types';
 
@@ -36,6 +36,9 @@ export default function EditAlbumDrawer({
   const [isMoving, setIsMoving]       = useState(false);
   const [error, setError]             = useState<string | null>(null);
   const [success, setSuccess]         = useState(false);
+  
+  // Markdown copy state
+  const [copiedMd, setCopiedMd]       = useState(false);
 
   // Close on Escape
   useEffect(() => {
@@ -58,6 +61,7 @@ export default function EditAlbumDrawer({
       setCoverUrl(album.cover_url || '');
       setError(null);
       setSuccess(false);
+      setCopiedMd(false);
     }
   }, [album]);
 
@@ -119,6 +123,25 @@ export default function EditAlbumDrawer({
     } finally {
       setIsMoving(false);
     }
+  };
+
+  const handleCopyMarkdown = () => {
+    const formats = [
+      digital ? 'Digital' : '',
+      cd ? 'CD' : '',
+      vinyl ? 'Vinyl' : ''
+    ].filter(Boolean).join(', ') || 'None';
+
+    const md = `### ${albumTitle}
+- **Artist:** ${artist}
+- **Year:** ${year || 'N/A'}
+- **Scope:** ${scope}
+- **Format Holdings:** ${formats}
+${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
+
+    navigator.clipboard.writeText(md);
+    setCopiedMd(true);
+    setTimeout(() => setCopiedMd(false), 2050);
   };
 
   const inputCls =
@@ -225,14 +248,33 @@ export default function EditAlbumDrawer({
               </div>
             </div>
 
-            {/* Notes */}
+            {/* Notes Section with Copy as Markdown */}
             <div className="space-y-1">
-              <label htmlFor="d-notes" className={labelCls}>Notes</label>
+              <div className="flex justify-between items-center">
+                <label htmlFor="d-notes" className={labelCls}>Notes</label>
+                <button
+                  type="button"
+                  onClick={handleCopyMarkdown}
+                  className="text-[10px] bg-zinc-800/80 hover:bg-zinc-750 text-zinc-350 px-2 py-1 rounded flex items-center gap-1 transition-colors border border-zinc-800"
+                >
+                  {copiedMd ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-400 animate-fade-in" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3 h-3" />
+                      Copy as Markdown
+                    </>
+                  )}
+                </button>
+              </div>
               <textarea
                 id="d-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Mastering source, comments…"
+                placeholder="Enter mastering comments, research notes…"
                 rows={4}
                 className={`${inputCls} resize-none font-sans`}
                 disabled={disabled}
