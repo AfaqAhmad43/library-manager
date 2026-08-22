@@ -9,6 +9,8 @@ interface AlbumCardProps {
   album: Album;
   onClick: () => void;
   table: 'albums' | 'unsorted';
+  isSelected?: boolean;
+  onSelect?: (e: React.MouseEvent) => void;
 }
 
 // ── Tier 2: iTunes Search API ─────────────────────────────────────────────
@@ -103,7 +105,7 @@ function getInitials(artist: string, title: string) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────
-export default function AlbumCard({ album, onClick, table }: AlbumCardProps) {
+export default function AlbumCard({ album, onClick, table, isSelected, onSelect }: AlbumCardProps) {
   const [artUrl, setArtUrl]     = useState<string | null>(album.cover_url || null);
   const [imgError, setImgError] = useState(false);
   const [loading, setLoading]   = useState(!album.cover_url);
@@ -178,10 +180,30 @@ export default function AlbumCard({ album, onClick, table }: AlbumCardProps) {
   return (
     <div
       onClick={onClick}
-      className="group bg-zinc-900/40 border border-zinc-800/80 hover:border-zinc-700/80 hover:bg-zinc-900/50 rounded-lg p-4 flex flex-col gap-3 transition-all duration-200 shadow-md cursor-pointer hover:scale-[1.01] active:scale-[0.99] select-none"
+      className={`group bg-zinc-900/40 border rounded-lg p-4 flex flex-col gap-3 transition-all duration-200 shadow-md cursor-pointer hover:scale-[1.01] active:scale-[0.99] select-none ${
+        isSelected
+          ? 'border-zinc-200 bg-zinc-900/60 shadow-zinc-950/80 ring-1 ring-zinc-200/20'
+          : 'border-zinc-800/80 hover:border-zinc-750/80 hover:bg-zinc-900/50'
+      }`}
     >
       {/* ── Cover Art ───────────────────────────────────────────── */}
       <div className="relative w-full aspect-square rounded overflow-hidden bg-zinc-950 border border-zinc-850/60 group-hover:border-zinc-750/50 transition-colors">
+        
+        {/* Checkbox overlay for batch operations */}
+        {onSelect && (
+          <div className="absolute top-2 left-2 z-20">
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => {}} // toggling is handled by click
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(e);
+              }}
+              className="w-4.5 h-4.5 rounded bg-zinc-950/90 border-zinc-800 text-zinc-100 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-zinc-100"
+            />
+          </div>
+        )}
 
         {/* Loading spinner */}
         {loading && (

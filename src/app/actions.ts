@@ -163,12 +163,149 @@ export async function moveAlbumToLibrary(
       .eq('id', id);
 
     if (deleteError) {
-      // Log it but continue since it's already copied
       console.error('Warning: Failed to delete from unsorted table after merge:', deleteError);
     }
 
     return { success: true, data: insertedAlbum as Album };
   } catch (err: any) {
     return { success: false, error: err.message || 'Unexpected error during move.' };
+  }
+}
+
+// ─────────────────────────────────────────────
+//  CHECK ALBUUM DUPLICATE (Main Library)
+// ─────────────────────────────────────────────
+export async function checkAlbumDuplicate(
+  artist: string,
+  title: string
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('albums')
+      .select('id')
+      .ilike('artist', artist.trim())
+      .ilike('album_title', title.trim())
+      .limit(1);
+
+    if (error) {
+      console.error('Error checking duplicate:', error);
+      return false;
+    }
+    return (data && data.length > 0);
+  } catch (err) {
+    console.error('Unexpected error checking duplicate:', err);
+    return false;
+  }
+}
+
+// ─────────────────────────────────────────────
+//  BATCH MOVE FROM UNSORTED TO MAIN LIBRARY
+// ─────────────────────────────────────────────
+export async function moveAlbumsToLibrary(
+  ids: string[]
+): Promise<{ success: boolean; data?: Album[]; error?: string }> {
+  try {
+    // 1. Fetch all requested records from unsorted
+    const { data: unsortedRecords, error: fetchError } = await supabase
+      .from('unsorted')
+      .select('*')
+      .in('id', ids);
+
+    if (fetchError || !unsortedRecords) {
+      return { success: false, error: fetchError?.message || 'No records found to move.' };
+    }
+
+    // 2. Map to format required for insertion
+    const insertData = unsortedRecords.map((r) => ({
+      artist:       r.artist,
+      album_title:  r.album_title,
+      year:         r.year,
+      scope:        r.scope,
+      digital:      r.digital,
+      cd:           r.cd,
+      vinyl:        r.vinyl,
+      notes:        r.notes,
+      cover_url:    r.cover_url,
+    }));
+
+    // 3. Insert into main library
+    const { data: insertedRecords, error: insertError } = await supabase
+      .from('albums')
+      .insert(insertData)
+      .select();
+
+    if (insertError) {
+      return { success: false, error: insertError.message };
+    }
+
+    // 4. Delete successfully copied records from unsorted
+    const { error: deleteError } = await supabase
+      .from('unsorted')
+      .delete()
+      .in('id', ids);
+
+    if (deleteError) {
+      console.error('Warning: Failed to clean unsorted backlog after batch migration:', deleteError);
+    }
+
+    return { success: true, data: insertedRecords as Album[] };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Unexpected error during batch move.' };
+  }
+}
+
+// ─────────────────────────────────────────────
+//  BATCH DELETE FROM UNSORTED
+// ─────────────────────────────────────────────
+export async function deleteUnsortedAlbums(
+  ids: string[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('unsorted')
+      .delete()
+      .in('id', ids);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Unexpected error during batch deletion.' };
+  }
+}
+
+// ─────────────────────────────────────────────
+//  BACKUP DOWNLOAD DATA
+// ─────────────────────────────────────────────
+export async function getLibraryBackup(): Promise<{
+  success: boolean;
+  albums?: Album[];
+  unsorted?: Album[];
+  error?: string;
+}> {
+  try {
+    const { data: albums, error: albumError } = await supabase
+      .from('albums')
+      .select('*')
+      .order('artist', { ascending: true });
+
+    const { data: unsorted, error: unsortedError } = await supabase
+      .from('unsorted')
+      .select('*')
+      .order('artist', { ascending: true });
+
+    if (albumError || unsortedError) {
+      return {
+        success: false,
+        error: albumError?.message || unsortedError?.message || 'Database error occurred.',
+      };
+    }
+
+    return {
+      success: true,
+      albums: (albums as Album[]) || [],
+      unsorted: (unsorted as Album[]) || [],
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Unexpected error compiling backup.' };
   }
 }
