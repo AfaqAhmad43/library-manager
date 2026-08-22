@@ -9,9 +9,10 @@ interface AddAlbumModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAlbumAdded: (newAlbum: Album) => void;
+  table: 'albums' | 'unsorted';
 }
 
-export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbumModalProps) {
+export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded, table }: AddAlbumModalProps) {
   const [artist, setArtist] = useState('');
   const [albumTitle, setAlbumTitle] = useState('');
   const [year, setYear] = useState('');
@@ -63,7 +64,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded }: AddAlbu
 
     setIsLoading(true);
     try {
-      const response = await addAlbum({
+      const response = await addAlbum(table, {
         artist,
         album_title: albumTitle,
         year,

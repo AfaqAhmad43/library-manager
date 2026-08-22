@@ -1,22 +1,26 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Check, Loader2, Link } from 'lucide-react';
-import { updateAlbum } from '@/app/actions';
+import { X, Check, Loader2, Link, ArrowRightLeft } from 'lucide-react';
+import { updateAlbum, moveAlbumToLibrary } from '@/app/actions';
 import { Album, Scope } from '@/types';
 
 interface EditAlbumDrawerProps {
   isOpen: boolean;
   album: Album | null;
+  table: 'albums' | 'unsorted';
   onClose: () => void;
   onAlbumUpdated: (updatedAlbum: Album) => void;
+  onAlbumMoved?: (albumId: string) => void;
 }
 
 export default function EditAlbumDrawer({
   isOpen,
   album,
+  table,
   onClose,
   onAlbumUpdated,
+  onAlbumMoved,
 }: EditAlbumDrawerProps) {
   const [artist, setArtist]           = useState('');
   const [albumTitle, setAlbumTitle]   = useState('');
@@ -29,6 +33,7 @@ export default function EditAlbumDrawer({
   const [coverUrl, setCoverUrl]       = useState('');
 
   const [isLoading, setIsLoading]     = useState(false);
+  const [isMoving, setIsMoving]       = useState(false);
   const [error, setError]             = useState<string | null>(null);
   const [success, setSuccess]         = useState(false);
 
@@ -68,7 +73,7 @@ export default function EditAlbumDrawer({
 
     setIsLoading(true);
     try {
-      const res = await updateAlbum(album.id, {
+      const res = await updateAlbum(table, album.id, {
         artist,
         album_title: albumTitle,
         year,
@@ -94,11 +99,33 @@ export default function EditAlbumDrawer({
     }
   };
 
+  const handleMove = async () => {
+    setError(null);
+    setSuccess(false);
+    setIsMoving(true);
+    try {
+      const res = await moveAlbumToLibrary(album.id);
+      if (!res.success) {
+        setError(res.error || 'Failed to move album.');
+      } else {
+        setSuccess(true);
+        if (onAlbumMoved) {
+          onAlbumMoved(album.id);
+        }
+        setTimeout(onClose, 800);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Unexpected error.');
+    } finally {
+      setIsMoving(false);
+    }
+  };
+
   const inputCls =
-    'w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-600 transition-colors placeholder:text-zinc-600 disabled:opacity-50';
+    'w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors placeholder:text-zinc-650 disabled:opacity-50';
   const labelCls =
     'text-xs font-semibold text-zinc-400 uppercase tracking-wider';
-  const disabled = isLoading || success;
+  const disabled = isLoading || isMoving || success;
 
   return (
     <>
@@ -121,7 +148,9 @@ export default function EditAlbumDrawer({
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/60 flex-shrink-0">
             <div>
               <h2 className="text-base font-bold text-zinc-100">Album Details</h2>
-              <p className="text-[11px] text-zinc-500 mt-0.5">Edit metadata, formats & artwork</p>
+              <p className="text-[11px] text-zinc-500 mt-0.5">
+                Edit album in {table === 'albums' ? 'Main Library' : 'Unsorted List'}
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -142,7 +171,7 @@ export default function EditAlbumDrawer({
             )}
             {success && (
               <div className="bg-emerald-950/20 border border-emerald-900/40 text-emerald-400 text-xs rounded p-3 flex items-center gap-2">
-                <Check className="w-4 h-4" /> Album updated successfully!
+                <Check className="w-4 h-4" /> Action completed successfully!
               </div>
             )}
 
@@ -186,7 +215,7 @@ export default function EditAlbumDrawer({
                         type="checkbox"
                         checked={val}
                         onChange={(e) => setter(e.target.checked)}
-                        className="w-4 h-4 rounded accent-zinc-100 cursor-pointer"
+                        className="w-4 h-4 rounded accent-zinc-105 cursor-pointer bg-zinc-900 border-zinc-800 text-zinc-100"
                         disabled={disabled}
                       />
                       {label === 'cd' ? 'CD' : label.charAt(0).toUpperCase() + label.slice(1)}
@@ -214,7 +243,7 @@ export default function EditAlbumDrawer({
             <div className="space-y-1">
               <label htmlFor="d-cover" className={labelCls}>
                 <Link className="w-3 h-3 inline mr-1 -mt-0.5" />
-                Artwork URL <span className="text-zinc-600 font-normal normal-case tracking-normal">(optional override)</span>
+                Artwork URL <span className="text-zinc-650 font-normal normal-case tracking-normal">(optional override)</span>
               </label>
               <input
                 id="d-cover"
@@ -239,19 +268,41 @@ export default function EditAlbumDrawer({
           </form>
 
           {/* Footer */}
-          <div className="p-5 border-t border-zinc-800/60 bg-zinc-900/60 flex gap-3 flex-shrink-0">
-            <button type="button" onClick={onClose} disabled={disabled}
-              className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2.5 px-4 rounded font-semibold text-sm transition-colors disabled:opacity-50">
-              Cancel
-            </button>
-            <button type="submit" form="" onClick={handleSubmit} disabled={disabled}
-              className="flex-1 bg-zinc-100 hover:bg-white text-zinc-950 py-2.5 px-4 rounded font-bold text-sm flex items-center justify-center gap-1.5 transition-colors disabled:opacity-55">
-              {isLoading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" />Saving…</>
-              ) : success ? (
-                <><Check className="w-4 h-4" />Saved</>
-              ) : 'Save Changes'}
-            </button>
+          <div className="p-5 border-t border-zinc-800/60 bg-zinc-900/60 flex flex-col gap-3 flex-shrink-0">
+            {table === 'unsorted' && (
+              <button
+                type="button"
+                onClick={handleMove}
+                disabled={disabled}
+                className="w-full bg-violet-650 hover:bg-violet-600 text-white py-2.5 px-4 rounded font-bold text-sm flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-sm"
+              >
+                {isMoving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Moving to Library...
+                  </>
+                ) : (
+                  <>
+                    <ArrowRightLeft className="w-4 h-4" />
+                    Move to Main Library
+                  </>
+                )}
+              </button>
+            )}
+            <div className="flex gap-3 w-full">
+              <button type="button" onClick={onClose} disabled={disabled}
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-350 py-2.5 px-4 rounded font-semibold text-sm transition-colors disabled:opacity-50">
+                Cancel
+              </button>
+              <button type="submit" form="" onClick={handleSubmit} disabled={disabled}
+                className="flex-1 bg-zinc-100 hover:bg-white text-zinc-950 py-2.5 px-4 rounded font-bold text-sm flex items-center justify-center gap-1.5 transition-colors disabled:opacity-55">
+                {isLoading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" />Saving…</>
+                ) : success ? (
+                  <><Check className="w-4 h-4" />Saved</>
+                ) : 'Save Changes'}
+              </button>
+            </div>
           </div>
 
         </div>

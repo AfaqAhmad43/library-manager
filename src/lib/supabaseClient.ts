@@ -13,19 +13,23 @@ export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
  * Persist a resolved artwork URL directly to the database from the browser.
  * Returns true on success, false on failure (with a console error).
  */
-export async function persistCoverUrl(id: string, cover_url: string): Promise<boolean> {
-  console.log(`[CoverArt] Persisting cover_url for album ${id}:`, cover_url);
+export async function persistCoverUrl(
+  table: 'albums' | 'unsorted',
+  id: string,
+  cover_url: string
+): Promise<boolean> {
+  console.log(`[CoverArt] Persisting cover_url for album ${id} in table '${table}':`, cover_url);
 
   const { error } = await supabaseClient
-    .from('albums')
+    .from(table)
     .update({ cover_url })
     .eq('id', id);
 
   if (error) {
-    console.error(`[CoverArt] ❌ Failed to persist cover_url for album ${id}:`, error.message, error);
+    console.error(`[CoverArt] ❌ Failed to persist cover_url for album ${id} in table '${table}':`, error.message, error);
     return false;
   }
 
-  console.log(`[CoverArt] ✅ Successfully cached cover_url for album ${id}`);
+  console.log(`[CoverArt] ✅ Successfully cached cover_url for album ${id} in table '${table}'`);
   return true;
 }
