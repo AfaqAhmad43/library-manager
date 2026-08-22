@@ -56,7 +56,7 @@ export default function AnalyticsView({ libraryAlbums, unsortedAlbums }: Analyti
     return acc;
   }, {} as Record<string, number>);
 
-  // Sort decades chronologically, putting "Unknown" at the end
+  // Sort decades chronologically
   const sortedDecades = Object.entries(decadeCounts).sort(([decA], [decB]) => {
     if (decA === 'Unknown') return 1;
     if (decB === 'Unknown') return -1;
@@ -66,103 +66,128 @@ export default function AnalyticsView({ libraryAlbums, unsortedAlbums }: Analyti
   const maxDecadeCount = Math.max(...Object.values(decadeCounts), 1);
 
   return (
-    <div className="space-y-6">
-      {/* Overview Cards */}
+    <div className="space-y-6 pt-4">
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Grand Total */}
-        <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-lg p-5 flex items-center justify-between shadow-sm">
+        <div className="bg-zinc-900/30 hover:bg-zinc-900/50 border border-white/5 rounded-xl p-5 flex items-center justify-between shadow-xl transition-all duration-350">
           <div>
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Catalog</p>
-            <p className="text-3xl font-bold text-zinc-100 mt-1 tracking-tight">{grandTotal}</p>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Total Catalog Size</p>
+            <p className="text-3xl font-bold text-zinc-100 mt-1.5 tracking-tight font-mono">{grandTotal}</p>
           </div>
-          <div className="p-3 bg-zinc-800/60 rounded-lg text-zinc-350">
+          <div className="p-3 bg-zinc-800/40 border border-white/5 rounded-xl text-zinc-400">
             <Database className="w-5 h-5" />
           </div>
         </div>
 
         {/* Library Count */}
-        <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-lg p-5 flex items-center justify-between shadow-sm">
+        <div className="bg-zinc-900/30 hover:bg-zinc-900/50 border border-white/5 rounded-xl p-5 flex items-center justify-between shadow-xl transition-all duration-350">
           <div>
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Main Library Size</p>
-            <p className="text-3xl font-bold text-violet-500 mt-1 tracking-tight">{libTotal}</p>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Main Library</p>
+            <p className="text-3xl font-bold text-zinc-200 mt-1.5 tracking-tight font-mono">
+              {libTotal}
+            </p>
           </div>
-          <div className="p-3 bg-violet-950/20 border border-violet-900/30 rounded-lg text-violet-400">
+          <div className="p-3 bg-violet-500/10 border border-violet-500/15 rounded-xl text-violet-400">
             <Layers className="w-5 h-5" />
           </div>
         </div>
 
         {/* Unsorted Backlog */}
-        <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-lg p-5 flex items-center justify-between shadow-sm">
+        <div className="bg-zinc-900/30 hover:bg-zinc-900/50 border border-white/5 rounded-xl p-5 flex items-center justify-between shadow-xl transition-all duration-350">
           <div>
-            <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Unsorted Backlog</p>
-            <p className="text-3xl font-bold text-amber-500 mt-1 tracking-tight">{unsortedTotal}</p>
+            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Unsorted queue</p>
+            <p className="text-3xl font-bold text-amber-500 mt-1.5 tracking-tight font-mono">
+              {unsortedTotal}
+            </p>
           </div>
-          <div className="p-3 bg-amber-950/20 border border-amber-900/30 rounded-lg text-amber-400">
+          <div className="p-3 bg-amber-500/10 border border-amber-500/15 rounded-xl text-amber-400">
             <BarChart2 className="w-5 h-5" />
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Formats Distribution Card */}
-        <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-lg p-6 space-y-6">
-          <div className="flex items-center gap-2 pb-3 border-b border-zinc-850">
-            <Percent className="w-4 h-4 text-zinc-400" />
-            <h2 className="text-sm font-bold text-zinc-200 uppercase tracking-wider">Format Coverage (Main Library)</h2>
+        {/* Formats Distribution */}
+        <div className="bg-zinc-900/20 border border-white/5 rounded-xl p-6 shadow-xl space-y-6">
+          <div className="flex items-center gap-2 pb-3.5 border-b border-white/5">
+            <Percent className="w-4 h-4 text-zinc-450" />
+            <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Format Coverage (Main Library)</h2>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Digital */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                <span className="flex items-center gap-1.5"><FileAudio className="w-3.5 h-3.5 text-teal-500" /> Digital</span>
-                <span>{digitalCount} albums ({digitalPercent}%)</span>
+                <span className="flex items-center gap-1.5">
+                  <FileAudio className="w-4 h-4 text-teal-400" />
+                  Digital Holdings
+                </span>
+                <span className="font-mono text-zinc-300">{digitalCount} / {libTotal} ({digitalPercent}%)</span>
               </div>
-              <div className="w-full bg-zinc-950 rounded-full h-2">
-                <div className="bg-teal-500 h-2 rounded-full transition-all duration-500" style={{ width: `${digitalPercent}%` }}></div>
+              <div className="w-full bg-zinc-950/80 border border-white/5 rounded-full h-2.5 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-teal-500 to-emerald-450 h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${digitalPercent}%` }}
+                />
               </div>
             </div>
 
             {/* CD */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                <span className="flex items-center gap-1.5"><Disc className="w-3.5 h-3.5 text-violet-500" /> CD</span>
-                <span>{cdCount} albums ({cdPercent}%)</span>
+                <span className="flex items-center gap-1.5">
+                  <Disc className="w-4 h-4 text-violet-400" />
+                  Compact Discs (CD)
+                </span>
+                <span className="font-mono text-zinc-300">{cdCount} / {libTotal} ({cdPercent}%)</span>
               </div>
-              <div className="w-full bg-zinc-950 rounded-full h-2">
-                <div className="bg-violet-500 h-2 rounded-full transition-all duration-500" style={{ width: `${cdPercent}%` }}></div>
+              <div className="w-full bg-zinc-950/80 border border-white/5 rounded-full h-2.5 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-violet-550 to-fuchsia-500 h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${cdPercent}%` }}
+                />
               </div>
             </div>
 
             {/* Vinyl */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                <span className="flex items-center gap-1.5"><Disc className="w-3.5 h-3.5 text-amber-500" /> Vinyl</span>
-                <span>{vinylCount} albums ({vinylPercent}%)</span>
+                <span className="flex items-center gap-1.5">
+                  <Disc className="w-4 h-4 text-amber-400" />
+                  Vinyl Records (LPs)
+                </span>
+                <span className="font-mono text-zinc-300">{vinylCount} / {libTotal} ({vinylPercent}%)</span>
               </div>
-              <div className="w-full bg-zinc-950 rounded-full h-2">
-                <div className="bg-amber-500 h-2 rounded-full transition-all duration-500" style={{ width: `${vinylPercent}%` }}></div>
+              <div className="w-full bg-zinc-950/80 border border-white/5 rounded-full h-2.5 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-amber-500 to-orange-450 h-full rounded-full transition-all duration-500" 
+                  style={{ width: `${vinylPercent}%` }}
+                />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Scope Distribution Card */}
-        <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-lg p-6 space-y-6">
-          <div className="flex items-center gap-2 pb-3 border-b border-zinc-850">
-            <Layers className="w-4 h-4 text-zinc-400" />
-            <h2 className="text-sm font-bold text-zinc-200 uppercase tracking-wider">Scope Distribution</h2>
+        {/* Scope Distribution */}
+        <div className="bg-zinc-900/20 border border-white/5 rounded-xl p-6 shadow-xl space-y-6">
+          <div className="flex items-center gap-2 pb-3.5 border-b border-white/5">
+            <Layers className="w-4 h-4 text-zinc-450" />
+            <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Scope Breakdown</h2>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {scopeStats.map((stat) => (
-              <div key={stat.name} className="space-y-1">
+              <div key={stat.name} className="space-y-1.5">
                 <div className="flex justify-between text-xs font-semibold text-zinc-400">
-                  <span>{stat.name}</span>
-                  <span>{stat.count} ({stat.percent}%)</span>
+                  <span>{stat.name} Scope</span>
+                  <span className="font-mono text-zinc-350">{stat.count} ({stat.percent}%)</span>
                 </div>
-                <div className="w-full bg-zinc-950 rounded-full h-2">
-                  <div className="bg-violet-550 h-2 rounded-full transition-all duration-500" style={{ width: `${stat.percent}%` }}></div>
+                <div className="w-full bg-zinc-950/80 border border-white/5 rounded-full h-2.5 overflow-hidden">
+                  <div 
+                    className="bg-zinc-300 h-full rounded-full transition-all duration-500" 
+                    style={{ width: `${stat.percent}%` }}
+                  />
                 </div>
               </div>
             ))}
@@ -170,33 +195,33 @@ export default function AnalyticsView({ libraryAlbums, unsortedAlbums }: Analyti
         </div>
       </div>
 
-      {/* Decade Distribution Section */}
-      <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-lg p-6 space-y-6">
-        <div className="flex items-center gap-2 pb-3 border-b border-zinc-850">
-          <Calendar className="w-4 h-4 text-zinc-400" />
-          <h2 className="text-sm font-bold text-zinc-200 uppercase tracking-wider">Decade of Release</h2>
+      {/* Decade Distribution */}
+      <div className="bg-zinc-900/20 border border-white/5 rounded-xl p-6 shadow-xl space-y-6">
+        <div className="flex items-center gap-2 pb-3.5 border-b border-white/5">
+          <Calendar className="w-4 h-4 text-zinc-450" />
+          <h2 className="text-xs font-bold text-zinc-300 uppercase tracking-widest">Release Decade Histogram</h2>
         </div>
 
         {libTotal === 0 ? (
-          <p className="text-xs text-zinc-550 italic text-center py-4">No data available</p>
+          <p className="text-xs text-zinc-550 italic text-center py-6">No records archived to analyze release years.</p>
         ) : (
-          <div className="space-y-3 pt-2">
+          <div className="space-y-4 pt-1">
             {sortedDecades.map(([decade, count]) => {
-              const percent = Math.round((count / maxDecadeCount) * 100);
-              const realPercent = Math.round((count / libTotal) * 100);
+              const scalePercent = Math.round((count / maxDecadeCount) * 100);
+              const totalPercent = Math.round((count / libTotal) * 100);
               return (
                 <div key={decade} className="flex items-center gap-4 text-xs font-medium">
-                  <span className="w-16 text-zinc-400 font-mono text-right">{decade}</span>
-                  <div className="flex-1 bg-zinc-950 rounded-md h-5 overflow-hidden border border-zinc-900/60 relative">
+                  <span className="w-14 text-zinc-500 font-mono text-right tracking-tight">{decade}</span>
+                  <div className="flex-1 bg-zinc-950/80 border border-white/5 rounded-lg h-6 overflow-hidden relative">
                     <div 
-                      className="bg-zinc-800 hover:bg-zinc-750 h-full rounded-md transition-all duration-500 border-r border-zinc-700/30" 
-                      style={{ width: `${percent}%` }}
+                      className="bg-zinc-800 hover:bg-zinc-750 h-full rounded-lg transition-all duration-500 border-r border-white/5 shadow-inner" 
+                      style={{ width: `${scalePercent}%` }}
                     />
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-300">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-zinc-300 font-mono">
                       {count} {count === 1 ? 'album' : 'albums'}
                     </span>
                   </div>
-                  <span className="w-12 text-zinc-500 text-right font-mono">{realPercent}%</span>
+                  <span className="w-12 text-zinc-550 text-right font-mono tracking-tight">{totalPercent}%</span>
                 </div>
               );
             })}

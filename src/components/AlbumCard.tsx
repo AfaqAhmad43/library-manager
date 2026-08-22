@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, FileText } from 'lucide-react';
+import { Calendar, FileText, FileAudio, Disc } from 'lucide-react';
 import { Album } from '@/types';
 import { persistCoverUrl } from '@/lib/supabaseClient';
 
@@ -21,21 +21,11 @@ async function fetchItunesArt(artist: string, title: string): Promise<string | n
       `https://itunes.apple.com/search?term=${q}&entity=album&limit=1`,
       { signal: AbortSignal.timeout(5000) }
     );
-    if (!res.ok) {
-      console.warn(`[CoverArt] iTunes responded ${res.status} for "${title}"`);
-      return null;
-    }
+    if (!res.ok) return null;
     const json = await res.json();
     const raw: string | undefined = json.results?.[0]?.artworkUrl100;
-    if (!raw) {
-      console.info(`[CoverArt] iTunes: no results for "${artist} – ${title}"`);
-      return null;
-    }
-    const url = raw.replace('100x100bb', '600x600bb');
-    console.info(`[CoverArt] ✅ iTunes found artwork for "${title}":`, url);
-    return url;
-  } catch (err) {
-    console.warn(`[CoverArt] iTunes fetch error for "${title}":`, err);
+    return raw ? raw.replace('100x100bb', '600x600bb') : null;
+  } catch {
     return null;
   }
 }
@@ -43,7 +33,6 @@ async function fetchItunesArt(artist: string, title: string): Promise<string | n
 // ── Tier 3: MusicBrainz + Cover Art Archive ───────────────────────────────
 async function fetchCaaArt(artist: string, title: string): Promise<string | null> {
   try {
-    // Step A — find the release group MBID
     const q = encodeURIComponent(`release:${title} artist:${artist}`);
     const mbRes = await fetch(
       `https://musicbrainz.org/ws/2/release-group?query=${q}&fmt=json&limit=1`,
@@ -55,45 +44,30 @@ async function fetchCaaArt(artist: string, title: string): Promise<string | null
         signal: AbortSignal.timeout(7000),
       }
     );
-    if (!mbRes.ok) {
-      console.warn(`[CoverArt] MusicBrainz responded ${mbRes.status} for "${title}"`);
-      return null;
-    }
+    if (!mbRes.ok) return null;
     const mbJson = await mbRes.json();
     const mbid: string | undefined = mbJson['release-groups']?.[0]?.id;
-    if (!mbid) {
-      console.info(`[CoverArt] MusicBrainz: no release group found for "${artist} – ${title}"`);
-      return null;
-    }
-    console.info(`[CoverArt] MusicBrainz MBID for "${title}": ${mbid}`);
+    if (!mbid) return null;
 
-    // Step B — fetch front cover from Cover Art Archive
     const caaRes = await fetch(
       `https://coverartarchive.org/release-group/${mbid}/front`,
       { redirect: 'follow', signal: AbortSignal.timeout(7000) }
     );
-    if (!caaRes.ok) {
-      console.warn(`[CoverArt] CAA responded ${caaRes.status} for MBID ${mbid}`);
-      return null;
-    }
-    // After redirects, caaRes.url is the final CDN image URL
-    const url = caaRes.url;
-    console.info(`[CoverArt] ✅ CAA found artwork for "${title}":`, url);
-    return url;
-  } catch (err) {
-    console.warn(`[CoverArt] CAA fetch error for "${title}":`, err);
+    if (!caaRes.ok) return null;
+    return caaRes.url;
+  } catch {
     return null;
   }
 }
 
-// ── Gradient fallback helpers ─────────────────────────────────────────────
+// ── Gorgeous Ambient Fallback Gradients ──────────────────────────────────
 const GRADIENTS = [
-  'from-slate-900 via-zinc-950 to-neutral-900',
-  'from-zinc-900 via-neutral-950 to-stone-900',
-  'from-slate-950 via-zinc-900 to-zinc-950',
-  'from-stone-950 via-zinc-950 to-neutral-900',
-  'from-neutral-900 via-slate-950 to-zinc-900',
-  'from-zinc-950 via-stone-900 to-slate-950',
+  'from-purple-950/80 via-zinc-950 to-indigo-950/80',
+  'from-amber-950/70 via-zinc-950 to-rose-950/70',
+  'from-teal-950/70 via-zinc-950 to-emerald-950/70',
+  'from-fuchsia-950/70 via-zinc-950 to-violet-950/70',
+  'from-blue-950/70 via-zinc-950 to-slate-950/70',
+  'from-cyan-950/70 via-zinc-950 to-zinc-950',
 ];
 
 function getGradient(artist: string, title: string) {
@@ -110,13 +84,10 @@ export default function AlbumCard({ album, onClick, table, isSelected, onSelect 
   const [imgError, setImgError] = useState(false);
   const [loading, setLoading]   = useState(!album.cover_url);
 
-  // Only attempt to cache once per mount — flipped to true ONLY after confirmed DB write
   const cacheSaved = useRef(!!album.cover_url);
 
   useEffect(() => {
-    // ── Tier 1: DB cache hit ───────────────────────────────────────────────
     if (album.cover_url) {
-      console.info(`[CoverArt] Cache hit for "${album.album_title}" → ${album.cover_url}`);
       setArtUrl(album.cover_url);
       setLoading(false);
       return;
@@ -127,39 +98,24 @@ export default function AlbumCard({ album, onClick, table, isSelected, onSelect 
     (async () => {
       setLoading(true);
       setImgError(false);
-      console.info(`[CoverArt] No cached URL for "${album.album_title}" — starting fetch chain`);
 
-      // ── Tier 2: iTunes ────────────────────────────────────────────────────
       let resolvedUrl: string | null = await fetchItunesArt(album.artist, album.album_title);
 
-      // ── Tier 3: Cover Art Archive ─────────────────────────────────────────
       if (!resolvedUrl) {
         resolvedUrl = await fetchCaaArt(album.artist, album.album_title);
       }
 
-      if (cancelled) {
-        console.info(`[CoverArt] Component unmounted before fetch resolved for "${album.album_title}"`);
-        return;
-      }
+      if (cancelled) return;
 
       if (resolvedUrl) {
-        // Update UI immediately
         setArtUrl(resolvedUrl);
-
-        // ── Background cache write ──────────────────────────────────────────
-        // Only attempt if we haven't successfully saved yet for this album
         if (!cacheSaved.current) {
-          console.info(`[CoverArt] Attempting DB cache write for album ${album.id} in '${table}'…`);
           const saved = await persistCoverUrl(table, album.id, resolvedUrl);
           if (saved) {
-            // Only flip flag after confirmed write
             cacheSaved.current = true;
           }
-          // If it failed, cacheSaved stays false so it can be retried next render
         }
       } else {
-        // ── Tier 4: Typographic gradient fallback ──────────────────────────
-        console.info(`[CoverArt] All APIs exhausted — using gradient fallback for "${album.album_title}"`);
         setArtUrl(null);
       }
 
@@ -172,22 +128,47 @@ export default function AlbumCard({ album, onClick, table, isSelected, onSelect 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [album.id, album.cover_url, table]);
 
-  const showArt  = !loading && !!artUrl && !imgError;
-  const showGrad = !loading && (!artUrl || imgError);
+  // ── Animated Skeleton Loader State ───────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="bg-zinc-900/30 border border-white/5 rounded-xl p-4 flex flex-col gap-3.5 animate-pulse shadow-md select-none">
+        {/* Artwork Shape */}
+        <div className="w-full aspect-square rounded-lg bg-zinc-800/50" />
+        {/* Metadata Lines */}
+        <div className="space-y-2 mt-1">
+          <div className="h-4 bg-zinc-800/70 rounded w-3/4" />
+          <div className="h-3 bg-zinc-850/70 rounded w-1/2" />
+        </div>
+        {/* Badges Shape */}
+        <div className="flex gap-2 mt-1">
+          <div className="w-7 h-7 bg-zinc-850/60 rounded" />
+          <div className="w-7 h-7 bg-zinc-850/60 rounded" />
+        </div>
+        {/* Divider & Footer Shape */}
+        <div className="pt-3 border-t border-zinc-850/30 flex justify-between items-center">
+          <div className="h-3.5 bg-zinc-850/40 rounded w-1/4" />
+          <div className="h-3.5 bg-zinc-850/40 rounded w-12" />
+        </div>
+      </div>
+    );
+  }
+
+  const showArt  = artUrl && !imgError;
+  const showGrad = !artUrl || imgError;
   const gradient = getGradient(album.artist, album.album_title);
   const initials = getInitials(album.artist, album.album_title);
 
   return (
     <div
       onClick={onClick}
-      className={`group bg-zinc-900/40 border rounded-lg p-4 flex flex-col gap-3 transition-all duration-200 shadow-md cursor-pointer hover:scale-[1.01] active:scale-[0.99] select-none ${
+      className={`group bg-zinc-900/30 hover:bg-zinc-900/60 border rounded-xl p-4 flex flex-col gap-3.5 transition-all duration-300 shadow-lg cursor-pointer hover:-translate-y-0.5 hover:shadow-black/40 select-none ${
         isSelected
-          ? 'border-zinc-200 bg-zinc-900/60 shadow-zinc-950/80 ring-1 ring-zinc-200/20'
-          : 'border-zinc-800/80 hover:border-zinc-750/80 hover:bg-zinc-900/50'
+          ? 'border-zinc-200 bg-zinc-900/60 shadow-black/50 ring-1 ring-zinc-200/20'
+          : 'border-white/5 hover:border-white/10'
       }`}
     >
       {/* ── Cover Art ───────────────────────────────────────────── */}
-      <div className="relative w-full aspect-square rounded overflow-hidden bg-zinc-950 border border-zinc-850/60 group-hover:border-zinc-750/50 transition-colors">
+      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-zinc-950 border border-white/5 transition-all duration-300">
         
         {/* Checkbox overlay for batch operations */}
         {onSelect && (
@@ -195,66 +176,56 @@ export default function AlbumCard({ album, onClick, table, isSelected, onSelect 
             <input
               type="checkbox"
               checked={isSelected}
-              onChange={() => {}} // toggling is handled by click
+              onChange={() => {}} // toggling is handled by click onSelect
               onClick={(e) => {
                 e.stopPropagation();
                 onSelect(e);
               }}
-              className="w-4.5 h-4.5 rounded bg-zinc-950/90 border-zinc-800 text-zinc-100 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-zinc-100"
+              className="w-4.5 h-4.5 rounded bg-zinc-950/90 border-white/10 text-zinc-100 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-zinc-100 transition-colors"
             />
           </div>
         )}
 
-        {/* Loading spinner */}
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-6 h-6 border-2 border-zinc-700 border-t-zinc-400 rounded-full animate-spin" />
-          </div>
-        )}
-
-        {/* Artwork image */}
+        {/* Artwork image with hover scale */}
         {showArt && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={artUrl!}
             alt={`${album.album_title} cover art`}
-            onError={() => {
-              console.warn(`[CoverArt] Image load failed for "${album.album_title}":`, artUrl);
-              setImgError(true);
-            }}
-            className="w-full h-full object-cover pointer-events-none"
+            onError={() => setImgError(true)}
+            className="w-full h-full object-cover pointer-events-none transition-transform duration-500 ease-out group-hover:scale-105"
           />
         )}
 
-        {/* Tier 4: Gradient typographic fallback */}
+        {/* Typographic fallback */}
         {showGrad && (
           <div
-            className={`absolute inset-0 bg-gradient-to-br ${gradient} flex flex-col justify-between p-3.5 overflow-hidden`}
+            className={`absolute inset-0 bg-gradient-to-br ${gradient} flex flex-col justify-between p-3.5 overflow-hidden transition-all`}
           >
             <div className="flex justify-between items-start">
-              <span className="text-[9px] uppercase font-bold tracking-widest text-zinc-600 font-mono">
+              <span className="text-[9px] uppercase font-bold tracking-widest text-zinc-450 font-mono">
                 No Cover
               </span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-900/60 border border-zinc-800/40 text-zinc-500 font-mono">
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-zinc-950/80 border border-white/5 text-zinc-400 font-mono">
                 {album.scope}
               </span>
             </div>
 
-            {/* Large initials watermark */}
-            <span className="absolute inset-0 flex items-center justify-center text-[4rem] font-black text-zinc-800/20 font-mono tracking-tighter pointer-events-none select-none">
+            {/* Ambient initials watermark */}
+            <span className="absolute inset-0 flex items-center justify-center text-[4.5rem] font-black text-zinc-100/10 font-mono tracking-tighter pointer-events-none select-none">
               {initials}
             </span>
 
             <div className="z-10">
-              <p className="text-xs font-bold text-zinc-300 leading-tight line-clamp-2">{album.album_title}</p>
-              <p className="text-[10px] text-zinc-500 mt-0.5 line-clamp-1">{album.artist}</p>
+              <p className="text-xs font-bold text-zinc-200 leading-tight line-clamp-2">{album.album_title}</p>
+              <p className="text-[10px] text-zinc-400 mt-0.5 line-clamp-1">{album.artist}</p>
             </div>
           </div>
         )}
       </div>
 
       {/* ── Metadata ─────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2.5">
         <div>
           <h3 className="text-sm font-bold text-zinc-100 group-hover:text-white leading-snug line-clamp-2 tracking-tight">
             {album.album_title}
@@ -262,41 +233,54 @@ export default function AlbumCard({ album, onClick, table, isSelected, onSelect 
           <p className="text-xs font-medium text-zinc-450 mt-0.5 line-clamp-1">{album.artist}</p>
         </div>
 
-        {/* Format badges */}
-        <div className="flex flex-wrap gap-1">
+        {/* Format Badges (Refactored into sleek, minimalist icon badges) */}
+        <div className="flex items-center gap-1.5">
           {album.digital && (
-            <span className="bg-teal-950/20 text-teal-400 border border-teal-900/35 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
-              Digital
+            <span 
+              className="p-1.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/15" 
+              title="Digital Available"
+            >
+              <FileAudio className="w-3.5 h-3.5" />
             </span>
           )}
           {album.cd && (
-            <span className="bg-violet-950/20 text-violet-400 border border-violet-900/35 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
-              CD
+            <span 
+              className="p-1.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/15" 
+              title="CD Available"
+            >
+              <Disc className="w-3.5 h-3.5" />
             </span>
           )}
           {album.vinyl && (
-            <span className="bg-amber-950/20 text-amber-400 border border-amber-900/35 text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded">
-              Vinyl
+            <span 
+              className="p-1.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/15" 
+              title="Vinyl Available"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="12" r="6"/>
+                <circle cx="12" cy="12" r="2"/>
+              </svg>
             </span>
           )}
         </div>
 
         {/* Year + Scope */}
-        <div className="pt-2 border-t border-zinc-850/50 flex items-center justify-between text-[11px] text-zinc-500">
+        <div className="pt-2.5 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-500">
           <div className="flex items-center gap-1">
-            <Calendar className="w-3 h-3 text-zinc-650" />
-            <span className="font-mono">{album.year || 'N/A'}</span>
+            <Calendar className="w-3 h-3 text-zinc-600" />
+            <span className="font-mono text-zinc-400">{album.year || 'N/A'}</span>
           </div>
-          <span className="bg-zinc-850/50 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-800/40 text-[10px] font-semibold">
+          <span className="bg-zinc-850/40 text-zinc-400 px-1.5 py-0.5 rounded border border-white/5 text-[9px] font-bold uppercase tracking-wider">
             {album.scope}
           </span>
         </div>
 
         {/* Notes snippet */}
         {album.notes && (
-          <div className="text-[11px] text-zinc-550 flex items-start gap-1 bg-zinc-950/20 rounded p-1.5 border border-zinc-850/30">
+          <div className="text-[11px] text-zinc-500 flex items-start gap-1 bg-zinc-950/40 rounded-lg p-2 border border-white/5">
             <FileText className="w-3.5 h-3.5 text-zinc-650 flex-shrink-0 mt-0.5" />
-            <span className="line-clamp-1 italic">&ldquo;{album.notes}&rdquo;</span>
+            <span className="line-clamp-1 italic text-zinc-400">&ldquo;{album.notes}&rdquo;</span>
           </div>
         )}
       </div>

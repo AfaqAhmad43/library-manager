@@ -37,6 +37,9 @@ export default function EditAlbumDrawer({
   const [error, setError]             = useState<string | null>(null);
   const [success, setSuccess]         = useState(false);
   
+  // Warning confirmation for duplicates
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+
   // Markdown copy state
   const [copiedMd, setCopiedMd]       = useState(false);
 
@@ -62,6 +65,7 @@ export default function EditAlbumDrawer({
       setError(null);
       setSuccess(false);
       setCopiedMd(false);
+      setShowDuplicateWarning(false);
     }
   }, [album]);
 
@@ -103,9 +107,27 @@ export default function EditAlbumDrawer({
     }
   };
 
-  const handleMove = async () => {
+  const handleMove = async (force = false) => {
     setError(null);
     setSuccess(false);
+    
+    // Prevent and trigger duplicate check first
+    if (!force) {
+      setIsMoving(true);
+      try {
+        const { checkAlbumDuplicate } = await import('@/app/actions');
+        const isDuplicate = await checkAlbumDuplicate(artist, albumTitle);
+        if (isDuplicate) {
+          setShowDuplicateWarning(true);
+          setIsMoving(false);
+          return;
+        }
+      } catch (err: any) {
+        console.error('Duplicate check error:', err);
+      }
+    }
+
+    setShowDuplicateWarning(false);
     setIsMoving(true);
     try {
       const res = await moveAlbumToLibrary(album.id);
@@ -145,9 +167,9 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
   };
 
   const inputCls =
-    'w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors placeholder:text-zinc-650 disabled:opacity-50';
+    'w-full bg-zinc-900 border border-white/5 focus:border-zinc-500 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-zinc-500/20 text-zinc-150 transition-all placeholder:text-zinc-600 disabled:opacity-50 font-sans';
   const labelCls =
-    'text-xs font-semibold text-zinc-400 uppercase tracking-wider';
+    'text-[10px] font-bold text-zinc-500 uppercase tracking-widest';
   const disabled = isLoading || isMoving || success;
 
   return (
@@ -155,29 +177,29 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
       <style jsx global>{`
         @keyframes drawerSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
         @keyframes drawerFadeIn  { from { opacity: 0; }               to { opacity: 1; } }
-        .drawer-slide { animation: drawerSlideIn 0.28s cubic-bezier(0.16,1,0.3,1) forwards; }
-        .drawer-fade  { animation: drawerFadeIn  0.2s ease-out forwards; }
+        .drawer-slide { animation: drawerSlideIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
+        .drawer-fade  { animation: drawerFadeIn  0.22s ease-out forwards; }
       `}</style>
 
-      {/* Backdrop */}
+      {/* Backdrop overlay */}
       <div
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end drawer-fade"
+        className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-end drawer-fade"
       >
-        {/* Panel */}
-        <div className="bg-zinc-900 border-l border-zinc-800/80 w-full max-w-md h-full flex flex-col shadow-2xl drawer-slide">
+        {/* Panel surface */}
+        <div className="bg-zinc-950 border-l border-white/10 w-full max-w-md h-full flex flex-col shadow-2xl drawer-slide">
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/60 flex-shrink-0">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 flex-shrink-0">
             <div>
-              <h2 className="text-base font-bold text-zinc-100">Album Details</h2>
-              <p className="text-[11px] text-zinc-500 mt-0.5">
-                Edit album in {table === 'albums' ? 'Main Library' : 'Unsorted List'}
+              <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider">Album Details</h2>
+              <p className="text-[10px] text-zinc-500 uppercase mt-0.5 tracking-wider">
+                Editing inside {table === 'albums' ? 'Main Library' : 'Unsorted queue'}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-zinc-400 hover:text-zinc-200 transition-colors p-1 rounded-md hover:bg-zinc-800/50"
+              className="text-zinc-400 hover:text-zinc-200 transition-colors p-1.5 rounded-lg hover:bg-zinc-900 border border-white/5"
               aria-label="Close drawer"
             >
               <X className="w-4 h-4" />
@@ -185,38 +207,64 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
           </div>
 
           {/* Scrollable form body */}
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
 
             {error && (
-              <div className="bg-red-950/20 border border-red-900/40 text-red-400 text-xs rounded p-3">
+              <div className="bg-red-950/20 border border-red-900/30 text-red-400 text-xs rounded-lg p-3.5">
                 {error}
               </div>
             )}
             {success && (
-              <div className="bg-emerald-950/20 border border-emerald-900/40 text-emerald-400 text-xs rounded p-3 flex items-center gap-2">
+              <div className="bg-emerald-950/20 border border-emerald-900/30 text-emerald-400 text-xs rounded-lg p-3.5 flex items-center gap-2">
                 <Check className="w-4 h-4" /> Action completed successfully!
               </div>
             )}
 
+            {/* Duplicate Soft Warning Panel */}
+            {showDuplicateWarning && (
+              <div className="bg-amber-950/20 border border-amber-900/30 text-amber-400 p-4 rounded-lg text-xs space-y-3 animate-fade-in shadow-lg">
+                <p className="font-bold uppercase tracking-wider text-[10px] text-amber-350">Duplicate Entry Detected</p>
+                <p className="leading-relaxed">
+                  An album titled &ldquo;{albumTitle}&rdquo; by &ldquo;{artist}&rdquo; already exists in your Main Library.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleMove(true)}
+                    className="bg-amber-500 hover:bg-amber-450 text-zinc-950 px-3 py-1.5 rounded font-bold transition-colors"
+                  >
+                    Move Anyway
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDuplicateWarning(false)}
+                    className="bg-zinc-900 hover:bg-zinc-800 border border-white/5 text-zinc-300 px-3 py-1.5 rounded transition-colors"
+                  >
+                    Cancel Move
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Artist */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label htmlFor="d-artist" className={labelCls}>Artist <span className="text-red-500">*</span></label>
               <input id="d-artist" type="text" value={artist} onChange={(e) => setArtist(e.target.value)} className={inputCls} disabled={disabled} required />
             </div>
 
             {/* Album Title */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label htmlFor="d-title" className={labelCls}>Album Title <span className="text-red-500">*</span></label>
               <input id="d-title" type="text" value={albumTitle} onChange={(e) => setAlbumTitle(e.target.value)} className={inputCls} disabled={disabled} required />
             </div>
 
             {/* Year + Scope */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <label htmlFor="d-year" className={labelCls}>Year</label>
                 <input id="d-year" type="text" value={year} onChange={(e) => setYear(e.target.value)} placeholder="e.g. 1973" className={inputCls} disabled={disabled} />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <label htmlFor="d-scope" className={labelCls}>Scope</label>
                 <select id="d-scope" value={scope} onChange={(e) => setScope(e.target.value as Scope)} className={inputCls} disabled={disabled}>
                   <option value="Full">Full</option>
@@ -230,36 +278,36 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
             {/* Formats */}
             <div className="space-y-2">
               <span className={labelCls}>Format Holdings</span>
-              <div className="grid grid-cols-3 gap-2 bg-zinc-950 border border-zinc-800 rounded p-3">
+              <div className="grid grid-cols-3 gap-2 bg-zinc-950/80 border border-white/5 rounded-lg p-3">
                 {([['digital', digital, setDigital], ['cd', cd, setCd], ['vinyl', vinyl, setVinyl]] as const).map(
                   ([label, val, setter]: any) => (
-                    <label key={label} className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer select-none capitalize">
+                    <label key={label} className="flex items-center gap-2.5 text-xs font-semibold text-zinc-300 cursor-pointer select-none capitalize">
                       <input
                         type="checkbox"
                         checked={val}
                         onChange={(e) => setter(e.target.checked)}
-                        className="w-4 h-4 rounded accent-zinc-105 cursor-pointer bg-zinc-900 border-zinc-800 text-zinc-100"
+                        className="w-4 h-4 rounded bg-zinc-900 border-white/10 text-zinc-100 cursor-pointer accent-zinc-200"
                         disabled={disabled}
                       />
-                      {label === 'cd' ? 'CD' : label.charAt(0).toUpperCase() + label.slice(1)}
+                      {label === 'cd' ? 'CD' : label}
                     </label>
                   )
                 )}
               </div>
             </div>
 
-            {/* Notes Section with Copy as Markdown */}
-            <div className="space-y-1">
+            {/* Notes Section with Markdown Copy */}
+            <div className="space-y-1.5">
               <div className="flex justify-between items-center">
                 <label htmlFor="d-notes" className={labelCls}>Notes</label>
                 <button
                   type="button"
                   onClick={handleCopyMarkdown}
-                  className="text-[10px] bg-zinc-800/80 hover:bg-zinc-750 text-zinc-350 px-2 py-1 rounded flex items-center gap-1 transition-colors border border-zinc-800"
+                  className="text-[10px] bg-zinc-900 hover:bg-zinc-800 text-zinc-350 px-2.5 py-1.5 rounded flex items-center gap-1 transition-colors border border-white/5"
                 >
                   {copiedMd ? (
                     <>
-                      <Check className="w-3 h-3 text-emerald-400 animate-fade-in" />
+                      <Check className="w-3 h-3 text-emerald-400" />
                       Copied!
                     </>
                   ) : (
@@ -274,18 +322,18 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
                 id="d-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Enter mastering comments, research notes…"
+                placeholder="Enter research sources, mastering notes…"
                 rows={4}
-                className={`${inputCls} resize-none font-sans`}
+                className={`${inputCls} resize-none`}
                 disabled={disabled}
               />
             </div>
 
-            {/* Cover Art URL (manual override) */}
-            <div className="space-y-1">
+            {/* Cover Art URL */}
+            <div className="space-y-1.5">
               <label htmlFor="d-cover" className={labelCls}>
                 <Link className="w-3 h-3 inline mr-1 -mt-0.5" />
-                Artwork URL <span className="text-zinc-650 font-normal normal-case tracking-normal">(optional override)</span>
+                Artwork URL <span className="text-zinc-600 font-normal lowercase tracking-normal">(override)</span>
               </label>
               <input
                 id="d-cover"
@@ -302,21 +350,21 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
                   src={coverUrl}
                   alt="Cover preview"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  className="mt-2 w-20 h-20 rounded object-cover border border-zinc-800"
+                  className="mt-2 w-20 h-20 rounded-lg object-cover border border-white/5 shadow-md"
                 />
               )}
             </div>
 
           </form>
 
-          {/* Footer */}
-          <div className="p-5 border-t border-zinc-800/60 bg-zinc-900/60 flex flex-col gap-3 flex-shrink-0">
+          {/* Footer controls */}
+          <div className="p-5 border-t border-white/5 bg-zinc-950 flex flex-col gap-3 flex-shrink-0">
             {table === 'unsorted' && (
               <button
                 type="button"
-                onClick={handleMove}
+                onClick={() => handleMove(false)}
                 disabled={disabled}
-                className="w-full bg-violet-650 hover:bg-violet-600 text-white py-2.5 px-4 rounded font-bold text-sm flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-sm"
+                className="w-full bg-violet-650 hover:bg-violet-600 text-white py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-sm"
               >
                 {isMoving ? (
                   <>
@@ -333,11 +381,11 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
             )}
             <div className="flex gap-3 w-full">
               <button type="button" onClick={onClose} disabled={disabled}
-                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-350 py-2.5 px-4 rounded font-semibold text-sm transition-colors disabled:opacity-50">
+                className="flex-1 bg-zinc-900 hover:bg-zinc-800 border border-white/5 text-zinc-350 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-50">
                 Cancel
               </button>
               <button type="submit" form="" onClick={handleSubmit} disabled={disabled}
-                className="flex-1 bg-zinc-100 hover:bg-white text-zinc-950 py-2.5 px-4 rounded font-bold text-sm flex items-center justify-center gap-1.5 transition-colors disabled:opacity-55">
+                className="flex-1 bg-zinc-100 hover:bg-white text-zinc-950 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors disabled:opacity-55 shadow-md">
                 {isLoading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" />Saving…</>
                 ) : success ? (
