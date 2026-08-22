@@ -4,21 +4,23 @@ import { supabase } from '@/lib/supabase';
 import { Album, Scope } from '@/types';
 
 // ─────────────────────────────────────────────
-//  GET ALL ALBUMS
+//  GET ALL ALBUMS (Dynamic Table)
 // ─────────────────────────────────────────────
-export async function getAlbums(): Promise<{
+export async function getAlbums(
+  table: 'albums' | 'unsorted' = 'albums'
+): Promise<{
   success: boolean;
   data: Album[];
   error?: string;
 }> {
   try {
     const { data, error } = await supabase
-      .from('albums')
+      .from(table)
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching albums:', error);
+      console.error(`Error fetching from ${table}:`, error);
       return { success: false, data: [], error: error.message };
     }
 
@@ -29,7 +31,7 @@ export async function getAlbums(): Promise<{
 }
 
 // ─────────────────────────────────────────────
-//  ADD ALBUM
+//  ADD ALBUM (Dynamic Table)
 // ─────────────────────────────────────────────
 interface AlbumInput {
   artist: string;
@@ -44,6 +46,7 @@ interface AlbumInput {
 }
 
 export async function addAlbum(
+  table: 'albums' | 'unsorted',
   input: AlbumInput
 ): Promise<{ success: boolean; data?: Album; error?: string }> {
   try {
@@ -51,7 +54,7 @@ export async function addAlbum(
     if (!input.album_title.trim())  return { success: false, error: 'Album title is required.' };
 
     const { data, error } = await supabase
-      .from('albums')
+      .from(table)
       .insert([{
         artist:       input.artist.trim(),
         album_title:  input.album_title.trim(),
@@ -74,9 +77,10 @@ export async function addAlbum(
 }
 
 // ─────────────────────────────────────────────
-//  UPDATE ALBUM
+//  UPDATE ALBUM (Dynamic Table)
 // ─────────────────────────────────────────────
 export async function updateAlbum(
+  table: 'albums' | 'unsorted',
   id: string,
   input: Partial<AlbumInput>
 ): Promise<{ success: boolean; data?: Album; error?: string }> {
@@ -98,7 +102,7 @@ export async function updateAlbum(
     if (input.cover_url   !== undefined) patch.cover_url   = input.cover_url.trim();
 
     const { data, error } = await supabase
-      .from('albums')
+      .from(table)
       .update(patch)
       .eq('id', id)
       .select()
@@ -112,24 +116,59 @@ export async function updateAlbum(
 }
 
 // ─────────────────────────────────────────────
-//  CACHE COVER URL (background write)
+//  MOVE ALBUM FROM UNSORTED TO MAIN LIBRARY
 // ─────────────────────────────────────────────
-/**
- * Called automatically by AlbumCard after a successful API artwork fetch.
- * Silently writes the resolved URL to cover_url so it's never re-fetched.
- */
-export async function saveCoverUrl(
-  id: string,
-  cover_url: string
-): Promise<void> {
+export async function moveAlbumToLibrary(
+  id: string
+): Promise<{ success: boolean; data?: Album; error?: string }> {
   try {
-    const { error } = await supabase
+    // 1. Fetch record from unsorted
+    const { data: unsortedAlbum, error: fetchError } = await supabase
+      .from('unsorted')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !unsortedAlbum) {
+      console.error('Error fetching from unsorted table:', fetchError);
+      return { success: false, error: fetchError?.message || 'Album not found in Unsorted table.' };
+    }
+
+    // 2. Insert into albums
+    const { data: insertedAlbum, error: insertError } = await supabase
       .from('albums')
-      .update({ cover_url })
+      .insert([{
+        artist:       unsortedAlbum.artist,
+        album_title:  unsortedAlbum.album_title,
+        year:         unsortedAlbum.year,
+        scope:        unsortedAlbum.scope,
+        digital:      unsortedAlbum.digital,
+        cd:           unsortedAlbum.cd,
+        vinyl:        unsortedAlbum.vinyl,
+        notes:        unsortedAlbum.notes,
+        cover_url:    unsortedAlbum.cover_url,
+      }])
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Error inserting into albums table:', insertError);
+      return { success: false, error: insertError.message };
+    }
+
+    // 3. Delete from unsorted
+    const { error: deleteError } = await supabase
+      .from('unsorted')
+      .delete()
       .eq('id', id);
 
-    if (error) console.error('Failed to cache cover_url:', error.message);
+    if (deleteError) {
+      // Log it but continue since it's already copied
+      console.error('Warning: Failed to delete from unsorted table after merge:', deleteError);
+    }
+
+    return { success: true, data: insertedAlbum as Album };
   } catch (err: any) {
-    console.error('Unexpected error caching cover_url:', err.message);
+    return { success: false, error: err.message || 'Unexpected error during move.' };
   }
 }

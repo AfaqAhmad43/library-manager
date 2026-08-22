@@ -8,6 +8,7 @@ import { persistCoverUrl } from '@/lib/supabaseClient';
 interface AlbumCardProps {
   album: Album;
   onClick: () => void;
+  table: 'albums' | 'unsorted';
 }
 
 // ── Tier 2: iTunes Search API ─────────────────────────────────────────────
@@ -102,7 +103,7 @@ function getInitials(artist: string, title: string) {
 }
 
 // ── Component ─────────────────────────────────────────────────────────────
-export default function AlbumCard({ album, onClick }: AlbumCardProps) {
+export default function AlbumCard({ album, onClick, table }: AlbumCardProps) {
   const [artUrl, setArtUrl]     = useState<string | null>(album.cover_url || null);
   const [imgError, setImgError] = useState(false);
   const [loading, setLoading]   = useState(!album.cover_url);
@@ -146,8 +147,8 @@ export default function AlbumCard({ album, onClick }: AlbumCardProps) {
         // ── Background cache write ──────────────────────────────────────────
         // Only attempt if we haven't successfully saved yet for this album
         if (!cacheSaved.current) {
-          console.info(`[CoverArt] Attempting DB cache write for album ${album.id}…`);
-          const saved = await persistCoverUrl(album.id, resolvedUrl);
+          console.info(`[CoverArt] Attempting DB cache write for album ${album.id} in '${table}'…`);
+          const saved = await persistCoverUrl(table, album.id, resolvedUrl);
           if (saved) {
             // Only flip flag after confirmed write
             cacheSaved.current = true;
@@ -167,7 +168,7 @@ export default function AlbumCard({ album, onClick }: AlbumCardProps) {
       cancelled = true;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [album.id, album.cover_url]);
+  }, [album.id, album.cover_url, table]);
 
   const showArt  = !loading && !!artUrl && !imgError;
   const showGrad = !loading && (!artUrl || imgError);
