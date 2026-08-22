@@ -40,7 +40,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedScope, setSelectedScope] = useState<string>('ALL');
   const [selectedFormat, setSelectedFormat] = useState<FormatFilter>('ALL');
-  const [sortBy, setSortBy] = useState<string>('artist'); // artist | title | year
+  const [sortBy, setSortBy] = useState<string>('artist');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -57,8 +57,6 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
   // Focus ref for search shortcut
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // ── 1. BACKGROUND LOAD & STATE PERSISTENCE (LocalStorage) ───────────────────────
-  
   // Pre-fetch Unsorted queue in the background on mount
   useEffect(() => {
     const prefetchUnsorted = async () => {
@@ -74,7 +72,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     prefetchUnsorted();
   }, []);
 
-  // Hydrate state from localStorage safely after mount to prevent SSR mismatches
+  // Hydrate state from localStorage safely
   useEffect(() => {
     try {
       const savedTab = localStorage.getItem('lib_activeTab');
@@ -93,7 +91,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     }
   }, []);
 
-  // Sync state changes to localStorage
+  // Sync state to localStorage
   useEffect(() => {
     localStorage.setItem('lib_activeTab', activeTab);
   }, [activeTab]);
@@ -119,10 +117,9 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     setCurrentPage(1);
   }, [searchQuery, selectedScope, selectedFormat, sortBy, activeTab]);
 
-  // ── 2. GLOBAL SHORTCUTS ───────────────────────────────────────────────────
+  // '/' to focus search input
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Focus search bar on '/' if not already focusing an input/textarea
       if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
         searchInputRef.current?.focus();
@@ -133,26 +130,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
-  // Helper to re-fetch active table on demand (for sync)
-  const refreshTable = async (tab: 'albums' | 'unsorted') => {
-    setLoadingData(true);
-    setDbError(undefined);
-    try {
-      const res = await getAlbums(tab);
-      if (res.success) {
-        if (tab === 'albums') setLibraryAlbums(res.data);
-        else setUnsortedAlbums(res.data);
-      } else {
-        setDbError(res.error || `Failed to refresh ${tab}`);
-      }
-    } catch (err: any) {
-      setDbError(err.message || 'Error refreshing table.');
-    } finally {
-      setLoadingData(false);
-    }
-  };
-
-  // ── 3. FILTERING & SORTING ───────────────────────────────────────────────
+  // Filtering
   const activeAlbumsList = activeTab === 'albums' ? libraryAlbums : unsortedAlbums;
 
   const filteredAlbums = activeAlbumsList.filter((album) => {
@@ -172,6 +150,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     return matchesSearch && matchesScope && matchesFormat;
   });
 
+  // Sorting
   const sortedAlbums = [...filteredAlbums].sort((a, b) => {
     if (sortBy === 'title') {
       return a.album_title.localeCompare(b.album_title, undefined, { sensitivity: 'base', numeric: true });
@@ -181,17 +160,16 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
       if (!b.year) return -1;
       return a.year.localeCompare(b.year, undefined, { numeric: true });
     }
-    // Default: Sort by Artist
     const artistCompare = a.artist.localeCompare(b.artist, undefined, { sensitivity: 'base' });
     if (artistCompare !== 0) return artistCompare;
     return a.album_title.localeCompare(b.album_title, undefined, { sensitivity: 'base' });
   });
 
-  // ── 4. PAGINATION CALCULATIONS ───────────────────────────────────────────
+  // Pagination
   const totalPages = Math.ceil(sortedAlbums.length / pageSize);
   const paginatedAlbums = sortedAlbums.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  // ── 5. SINGLE HANDLERS ────────────────────────────────────────────────────
+  // Handlers
   const handleAlbumAdded = (newAlbum: Album) => {
     if (activeTab === 'albums') {
       setLibraryAlbums((prev) => [newAlbum, ...prev]);
@@ -231,7 +209,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     setIsDrawerOpen(true);
   };
 
-  // ── 6. BATCH SELECTION & ACTIONS ─────────────────────────────────────────
+  // Batch Select Handlers
   const handleSelectAlbum = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -254,8 +232,6 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     if (selectedIds.length === 0) return;
 
     const selectedBacklog = unsortedAlbums.filter((a) => selectedIds.includes(a.id));
-    
-    // In-memory duplicate check against Main Library
     const duplicates = selectedBacklog.filter((u) =>
       libraryAlbums.some(
         (l) =>
@@ -322,7 +298,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     }
   };
 
-  // ── 7. EXPORT DATA BACKUPS ────────────────────────────────────────────────
+  // Export Backups
   const exportJSON = async () => {
     try {
       const res = await getLibraryBackup();
@@ -399,7 +375,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     <div className="space-y-6">
       {/* DB Connection Error Banner */}
       {dbError && (
-        <div className="bg-amber-950/20 border border-amber-900/40 text-amber-400 p-4 rounded-lg flex items-start gap-3">
+        <div className="bg-amber-950/20 border border-amber-900/30 text-amber-400 p-4 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-bold">Database Warning</p>
@@ -408,64 +384,70 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
               {dbError}
             </code>
             <p className="mt-2 text-xs text-zinc-500">
-              Please check your environment variables in{' '}
-              <code className="bg-zinc-950/60 px-1 py-0.5 rounded font-mono text-zinc-400">.env.local</code>{' '}
-              and verify that you ran the SQL schema in the Supabase SQL Editor.
+              Please check your environment variables and verify SQL schema.
             </p>
           </div>
         </div>
       )}
 
-      {/* Header and Exporters */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-900">
-        <div>
-          <h1 className="text-xl font-bold text-zinc-100 tracking-tight">Audio Library</h1>
-          <p className="text-xs text-zinc-500 mt-1">Manage, sort, and analyze your album formats archive</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={exportJSON}
-            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 px-3 py-2 rounded font-semibold text-xs transition-colors"
-            title="Download unified JSON backup of both tables"
-          >
-            Export JSON
-          </button>
-          <button
-            onClick={exportCSV}
-            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 px-3 py-2 rounded font-semibold text-xs transition-colors"
-            title="Download unified CSV backup of both tables"
-          >
-            Export CSV
-          </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-zinc-100 hover:bg-white text-zinc-950 px-4 py-2 rounded font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Album
-          </button>
-        </div>
-      </div>
+      {/* ── Floating Glass Header ───────────────────────────────────────────── */}
+      <div className="sticky top-0 z-40 backdrop-blur-md bg-zinc-950/80 border-b border-white/10 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-4.5 mb-6">
+        <div className="max-w-7xl mx-auto flex flex-col gap-4">
+          
+          {/* Row 1: Logo/Title + Buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-lg font-bold text-zinc-100 uppercase tracking-widest">Audio Archive</h1>
+              <p className="text-[9px] text-zinc-500 uppercase tracking-widest mt-0.5">Catalog, filter, and audit music formats</p>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={exportJSON}
+                className="bg-zinc-900/50 hover:bg-zinc-800 border border-white/5 text-zinc-300 px-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors"
+                title="Download full JSON backup"
+              >
+                Export JSON
+              </button>
+              <button
+                onClick={exportCSV}
+                className="bg-zinc-900/50 hover:bg-zinc-800 border border-white/5 text-zinc-300 px-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors"
+                title="Download full CSV backup"
+              >
+                Export CSV
+              </button>
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-zinc-100 hover:bg-white text-zinc-950 px-4 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-md"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Album
+              </button>
+            </div>
+          </div>
 
-      {/* Navigation Switcher Tabs */}
-      <div className="flex border-b border-zinc-800/80 -mb-px">
-        {(['albums', 'unsorted', 'analytics'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => {
-              setActiveTab(tab);
-              setSelectedIds([]);
-            }}
-            disabled={loadingData}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors capitalize ${
-              activeTab === tab
-                ? 'border-zinc-100 text-zinc-150'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            {tab === 'albums' ? 'Main Library' : tab === 'unsorted' ? 'Unsorted queue' : 'Analytics & Stats'}
-          </button>
-        ))}
+          {/* Row 2: Navigation Switcher Tabs */}
+          <div className="flex gap-1.5 -mb-4.5 pt-1 overflow-x-auto scrollbar-none">
+            {(['albums', 'unsorted', 'analytics'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setSelectedIds([]);
+                }}
+                disabled={loadingData}
+                className={`px-4 py-2.5 text-[10px] uppercase font-bold tracking-widest transition-all relative select-none cursor-pointer border-b-2 -mb-px ${
+                  activeTab === tab
+                    ? 'border-zinc-100 text-zinc-100'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-350'
+                }`}
+              >
+                {tab === 'albums' ? 'Main Library' : tab === 'unsorted' ? 'Unsorted queue' : 'Analytics & Stats'}
+              </button>
+            ))}
+          </div>
+
+        </div>
       </div>
 
       {/* Render Analytics View */}
@@ -477,17 +459,17 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
           <StatsBar albums={activeAlbumsList} />
 
           {/* Search + Sorting + Filters */}
-          <div className="bg-zinc-900/20 border border-zinc-900 rounded-lg p-4 space-y-4">
+          <div className="bg-zinc-900/20 border border-white/5 rounded-xl p-4.5 space-y-4 shadow-lg">
             <div className="flex flex-col md:flex-row gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search by artist or album title… (Press '/' to focus)"
-                  className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded pl-9 pr-4 py-2 text-sm outline-none focus:border-zinc-700 transition-colors placeholder:text-zinc-600 font-sans"
+                  className="w-full bg-zinc-950/80 border border-white/5 focus:border-zinc-550 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-zinc-550/20 text-zinc-100 placeholder:text-zinc-650 transition-all font-sans"
                 />
               </div>
 
@@ -496,7 +478,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full sm:w-44 bg-zinc-950 border border-zinc-800 text-zinc-300 text-sm rounded px-3 py-2 outline-none focus:border-zinc-700 transition-colors font-sans"
+                  className="w-full sm:w-44 bg-zinc-950 border border-white/5 focus:border-zinc-500 text-zinc-350 text-sm rounded-lg px-3.5 py-2.5 outline-none focus:ring-1 focus:ring-zinc-550/20 transition-all font-sans"
                 >
                   <option value="artist">Sort by Artist</option>
                   <option value="title">Sort by Title</option>
@@ -507,7 +489,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
                 <select
                   value={selectedScope}
                   onChange={(e) => setSelectedScope(e.target.value)}
-                  className="w-full sm:w-40 bg-zinc-950 border border-zinc-800 text-zinc-300 text-sm rounded px-3 py-2 outline-none focus:border-zinc-700 transition-colors font-sans"
+                  className="w-full sm:w-40 bg-zinc-950 border border-white/5 focus:border-zinc-500 text-zinc-350 text-sm rounded-lg px-3.5 py-2.5 outline-none focus:ring-1 focus:ring-zinc-550/20 transition-all font-sans"
                 >
                   <option value="ALL">All Scopes</option>
                   <option value="Full">Full</option>
@@ -520,10 +502,10 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
                   <button
                     onClick={handleClearFilters}
                     title="Clear all filters"
-                    className="bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 hover:text-zinc-200 text-zinc-400 px-3 py-2 rounded text-sm flex items-center gap-1.5 transition-colors font-semibold"
+                    className="bg-zinc-900/50 border border-white/5 hover:bg-zinc-800 text-zinc-400 px-3.5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
                   >
-                    <FilterX className="w-4 h-4" />
-                    <span className="hidden sm:inline md:hidden lg:inline">Clear</span>
+                    <FilterX className="w-3.5 h-3.5" />
+                    <span>Clear</span>
                   </button>
                 )}
               </div>
@@ -535,10 +517,10 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
                 <button
                   key={key}
                   onClick={() => setSelectedFormat(key)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
                     selectedFormat === key
                       ? 'bg-zinc-100 text-zinc-950 border-zinc-100'
-                      : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-200'
+                      : 'bg-zinc-950 text-zinc-400 border-white/5 hover:border-zinc-700 hover:text-zinc-200'
                   }`}
                 >
                   {label}
@@ -547,18 +529,18 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
             </div>
           </div>
 
-          {/* Batch Operations Bar (Unsorted list with active selections) */}
+          {/* Batch Operations Bar */}
           {activeTab === 'unsorted' && selectedIds.length > 0 && (
-            <div className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in shadow-md">
-              <div className="flex items-center gap-2 text-sm text-zinc-350">
-                <CheckSquare className="w-4.5 h-4.5 text-zinc-400" />
-                <span>Selected <span className="font-bold text-zinc-150">{selectedIds.length}</span> albums from backlog</span>
+            <div className="bg-zinc-900/60 border border-white/5 p-4.5 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in shadow-xl">
+              <div className="flex items-center gap-2.5 text-xs font-semibold text-zinc-400 uppercase tracking-widest">
+                <CheckSquare className="w-4.5 h-4.5 text-zinc-450" />
+                <span>Selected <span className="font-bold text-zinc-200 font-mono">{selectedIds.length}</span> albums</span>
               </div>
               <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                 <button
                   onClick={handleBatchMigrate}
                   disabled={loadingData}
-                  className="flex-1 sm:flex-none bg-violet-650 hover:bg-violet-600 text-white font-bold text-xs px-4.5 py-2.5 rounded flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="flex-1 sm:flex-none bg-violet-650 hover:bg-violet-600 text-white font-bold text-xs uppercase tracking-wider px-4.5 py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-md"
                 >
                   <ArrowRightLeft className="w-3.5 h-3.5" />
                   Migrate Selected
@@ -566,7 +548,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
                 <button
                   onClick={handleBatchDelete}
                   disabled={loadingData}
-                  className="flex-1 sm:flex-none bg-red-950/20 border border-red-900/40 hover:bg-red-900/20 text-red-400 font-bold text-xs px-4.5 py-2.5 rounded flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="flex-1 sm:flex-none bg-red-950/20 border border-red-900/30 hover:bg-red-900/30 text-red-400 font-bold text-xs uppercase tracking-wider px-4.5 py-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   Delete Selected
@@ -574,7 +556,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
                 <button
                   onClick={() => setSelectedIds([])}
                   disabled={loadingData}
-                  className="flex-1 sm:flex-none bg-zinc-850 hover:bg-zinc-800 text-zinc-400 text-xs px-3 py-2.5 rounded transition-colors disabled:opacity-50"
+                  className="flex-1 sm:flex-none bg-zinc-850 hover:bg-zinc-800 text-zinc-400 text-xs px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -582,23 +564,23 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
             </div>
           )}
 
-          {/* Album Grid / Loading status */}
+          {/* Album Grid */}
           {loadingData ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-zinc-500" />
-              <p className="text-sm text-zinc-500">Updating lists...</p>
+            <div className="flex flex-col items-center justify-center py-24 gap-3.5">
+              <Loader2 className="w-8 h-8 animate-spin text-zinc-650" />
+              <p className="text-xs text-zinc-550 uppercase tracking-widest font-bold">Updating Archive List...</p>
             </div>
           ) : paginatedAlbums.length > 0 ? (
             <div className="space-y-6">
               {activeTab === 'unsorted' && (
-                <div className="flex items-center gap-2 text-xs text-zinc-500 pl-1">
+                <div className="flex items-center gap-2 text-xs text-zinc-500 pl-1.5">
                   <input
                     type="checkbox"
                     checked={isAllSelected}
                     onChange={handleSelectAllFiltered}
-                    className="w-4 h-4 rounded bg-zinc-950 border-zinc-800 text-zinc-200 accent-zinc-200 cursor-pointer"
+                    className="w-4 h-4 rounded bg-zinc-950 border-white/10 text-zinc-200 accent-zinc-200 cursor-pointer"
                   />
-                  <span>Select all filtered items on this view</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Select all filtered backlog items</span>
                 </div>
               )}
 
@@ -615,19 +597,19 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
                 ))}
               </div>
 
-              {/* Pagination footer navigation */}
+              {/* Pagination footer */}
               {totalPages > 1 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-zinc-900 mt-8 text-sm">
-                  <span className="text-zinc-500">
-                    Showing <span className="font-semibold text-zinc-300">{Math.min(sortedAlbums.length, (currentPage - 1) * pageSize + 1)}</span> to{' '}
-                    <span className="font-semibold text-zinc-300">{Math.min(sortedAlbums.length, currentPage * pageSize)}</span> of{' '}
-                    <span className="font-semibold text-zinc-300">{sortedAlbums.length}</span> albums
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-white/5 mt-8 text-sm">
+                  <span className="text-zinc-500 text-xs">
+                    Showing <span className="font-semibold text-zinc-350">{Math.min(sortedAlbums.length, (currentPage - 1) * pageSize + 1)}</span> to{' '}
+                    <span className="font-semibold text-zinc-350">{Math.min(sortedAlbums.length, currentPage * pageSize)}</span> of{' '}
+                    <span className="font-semibold text-zinc-350">{sortedAlbums.length}</span> albums
                   </span>
                   <div className="flex items-center gap-2">
                     <button
                       disabled={currentPage === 1}
                       onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                      className="px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-800 transition-colors"
+                      className="px-3.5 py-2 rounded-lg bg-zinc-900 border border-white/5 text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-800 transition-colors text-xs font-bold uppercase tracking-wider"
                     >
                       Previous
                     </button>
@@ -635,7 +617,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
                         if (totalPages > 5 && Math.abs(p - currentPage) > 2 && p !== 1 && p !== totalPages) {
                           if (p === 2 || p === totalPages - 1) {
-                            return <span key={p} className="px-1.5 text-zinc-650 font-bold">...</span>;
+                            return <span key={p} className="px-1 text-zinc-600 font-bold">...</span>;
                           }
                           return null;
                         }
@@ -643,10 +625,10 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
                           <button
                             key={p}
                             onClick={() => setCurrentPage(p)}
-                            className={`px-3 py-1.5 rounded font-mono text-xs ${
+                            className={`px-3 py-1.5 rounded-lg font-mono text-xs ${
                               currentPage === p
                                 ? 'bg-zinc-100 text-zinc-950 font-bold'
-                                : 'bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-850'
+                                : 'bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-white/5'
                             }`}
                           >
                             {p}
@@ -657,7 +639,7 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
                     <button
                       disabled={currentPage === totalPages}
                       onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                      className="px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-800 transition-colors"
+                      className="px-3.5 py-2 rounded-lg bg-zinc-900 border border-white/5 text-zinc-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-zinc-800 transition-colors text-xs font-bold uppercase tracking-wider"
                     >
                       Next
                     </button>
@@ -666,33 +648,33 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
               )}
             </div>
           ) : (
-            <div className="border border-dashed border-zinc-800/80 rounded-xl p-12 text-center flex flex-col items-center justify-center bg-zinc-900/10">
+            <div className="border border-dashed border-white/10 rounded-xl p-16 text-center flex flex-col items-center justify-center bg-zinc-900/10">
               {hasActiveFilters ? (
                 <>
-                  <FilterX className="w-10 h-10 text-zinc-650 mb-3" />
-                  <h3 className="text-base font-semibold text-zinc-300">No results found</h3>
-                  <p className="text-xs text-zinc-550 mt-1 max-w-sm">
+                  <FilterX className="w-10 h-10 text-zinc-650 mb-4" />
+                  <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-wider">No results found</h3>
+                  <p className="text-xs text-zinc-550 mt-1.5 max-w-sm leading-relaxed">
                     No albums match your current filters. Try resetting them.
                   </p>
                   <button
                     onClick={handleClearFilters}
-                    className="mt-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-2 rounded text-xs font-semibold border border-zinc-700/50 transition-colors"
+                    className="mt-5 bg-zinc-900 hover:bg-zinc-800 text-zinc-200 px-4.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider border border-white/5 transition-colors"
                   >
                     Reset Filters
                   </button>
                 </>
               ) : (
                 <>
-                  <HelpCircle className="w-10 h-10 text-zinc-650 mb-3" />
-                  <h3 className="text-base font-semibold text-zinc-300">
+                  <HelpCircle className="w-10 h-10 text-zinc-650 mb-4" />
+                  <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-wider">
                     Your {activeTab === 'albums' ? 'library' : 'unsorted backlog'} is empty
                   </h3>
-                  <p className="text-xs text-zinc-550 mt-1 max-w-xs">
-                    Add your first album to this list to get started.
+                  <p className="text-xs text-zinc-550 mt-1.5 max-w-xs leading-relaxed">
+                    Add your first album to this archive list to get started.
                   </p>
                   <button
                     onClick={() => setIsModalOpen(true)}
-                    className="mt-4 bg-zinc-100 hover:bg-white text-zinc-950 px-4 py-2 rounded text-xs font-bold transition-colors flex items-center gap-1.5"
+                    className="mt-5 bg-zinc-100 hover:bg-white text-zinc-950 px-4.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 shadow-md"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     Add to {activeTab === 'albums' ? 'Library' : 'Unsorted'}

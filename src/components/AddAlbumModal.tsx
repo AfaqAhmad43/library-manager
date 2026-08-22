@@ -37,7 +37,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded, table }: 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Reset form fields when modal opens or closes
+  // Reset form fields when modal opens
   useEffect(() => {
     if (isOpen) {
       setArtist('');
@@ -95,18 +95,29 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded, table }: 
     }
   };
 
+  const inputCls =
+    'w-full bg-zinc-900 border border-white/5 focus:border-zinc-500 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-zinc-500/20 text-zinc-150 transition-all placeholder:text-zinc-600 disabled:opacity-50 font-sans';
+  const labelCls =
+    'text-[10px] font-bold text-zinc-500 uppercase tracking-widest';
+  const disabled = isLoading;
+
   return (
     <div
       onClick={handleBackdropClick}
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
     >
-      <div className="bg-zinc-900 border border-zinc-800/80 w-full max-w-md rounded-lg shadow-xl overflow-hidden flex flex-col relative">
+      <div className="bg-zinc-950 border border-white/10 w-full max-w-md rounded-xl shadow-2xl overflow-hidden flex flex-col relative animate-fade-in">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-850">
-          <h2 className="text-base font-bold text-zinc-100">Add New Album</h2>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+          <div>
+            <h2 className="text-sm font-bold text-zinc-100 uppercase tracking-wider">Add New Album</h2>
+            <p className="text-[9px] text-zinc-500 uppercase tracking-wider mt-0.5">
+              Adding to {table === 'albums' ? 'Main Library' : 'Unsorted queue'}
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-200 transition-colors p-1 rounded-md hover:bg-zinc-800/50"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors p-1.5 rounded-lg hover:bg-zinc-900 border border-white/5"
             aria-label="Close modal"
           >
             <X className="w-4 h-4" />
@@ -114,15 +125,16 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded, table }: 
         </div>
 
         {/* Content / Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           {error && (
-            <div className="bg-red-950/20 border border-red-900/40 text-red-400 text-xs rounded p-3">
+            <div className="bg-red-950/20 border border-red-900/30 text-red-400 text-xs rounded-lg p-3.5">
               {error}
             </div>
           )}
 
-          <div className="space-y-1">
-            <label htmlFor="artist" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+          {/* Artist */}
+          <div className="space-y-1.5">
+            <label htmlFor="artist" className={labelCls}>
               Artist <span className="text-red-500">*</span>
             </label>
             <input
@@ -132,13 +144,14 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded, table }: 
               value={artist}
               onChange={(e) => setArtist(e.target.value)}
               placeholder="e.g., Pink Floyd"
-              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors placeholder:text-zinc-650"
-              disabled={isLoading}
+              className={inputCls}
+              disabled={disabled}
             />
           </div>
 
-          <div className="space-y-1">
-            <label htmlFor="album_title" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+          {/* Album Title */}
+          <div className="space-y-1.5">
+            <label htmlFor="album_title" className={labelCls}>
               Album Title <span className="text-red-500">*</span>
             </label>
             <input
@@ -148,37 +161,33 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded, table }: 
               value={albumTitle}
               onChange={(e) => setAlbumTitle(e.target.value)}
               placeholder="e.g., The Dark Side of the Moon"
-              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors placeholder:text-zinc-650"
-              disabled={isLoading}
+              className={inputCls}
+              disabled={disabled}
             />
           </div>
 
+          {/* Year + Scope */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label htmlFor="year" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                Year
-              </label>
+            <div className="space-y-1.5">
+              <label htmlFor="year" className={labelCls}>Year</label>
               <input
                 id="year"
                 type="text"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
                 placeholder="e.g., 1973"
-                className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors placeholder:text-zinc-650"
-                disabled={isLoading}
+                className={inputCls}
+                disabled={disabled}
               />
             </div>
-
-            <div className="space-y-1">
-              <label htmlFor="scope" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                Scope
-              </label>
+            <div className="space-y-1.5">
+              <label htmlFor="scope" className={labelCls}>Scope</label>
               <select
                 id="scope"
                 value={scope}
                 onChange={(e) => setScope(e.target.value as Scope)}
-                className="w-full bg-zinc-950 border border-zinc-800 text-zinc-150 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors"
-                disabled={isLoading}
+                className={inputCls}
+                disabled={disabled}
               >
                 <option value="Full">Full</option>
                 <option value="Partial">Partial</option>
@@ -188,92 +197,79 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded, table }: 
             </div>
           </div>
 
-          {/* Formats Checkboxes */}
+          {/* Formats */}
           <div className="space-y-2">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block">
-              Format Holdings
-            </span>
-            <div className="grid grid-cols-3 gap-2 bg-zinc-950 border border-zinc-800 rounded p-3">
-              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={digital}
-                  onChange={(e) => setDigital(e.target.checked)}
-                  className="w-4 h-4 rounded bg-zinc-900 border-zinc-800 text-zinc-100 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-zinc-100"
-                  disabled={isLoading}
-                />
-                Digital
-              </label>
-
-              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={cd}
-                  onChange={(e) => setCd(e.target.checked)}
-                  className="w-4 h-4 rounded bg-zinc-900 border-zinc-800 text-zinc-100 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-zinc-100"
-                  disabled={isLoading}
-                />
-                CD
-              </label>
-
-              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={vinyl}
-                  onChange={(e) => setVinyl(e.target.checked)}
-                  className="w-4 h-4 rounded bg-zinc-900 border-zinc-800 text-zinc-100 focus:ring-0 focus:ring-offset-0 cursor-pointer accent-zinc-100"
-                  disabled={isLoading}
-                />
-                Vinyl
-              </label>
+            <span className={labelCls}>Format Holdings</span>
+            <div className="grid grid-cols-3 gap-2 bg-zinc-950/85 border border-white/5 rounded-lg p-3">
+              {([['digital', digital, setDigital], ['cd', cd, setCd], ['vinyl', vinyl, setVinyl]] as const).map(
+                ([label, val, setter]: any) => (
+                  <label key={label} className="flex items-center gap-2.5 text-xs font-semibold text-zinc-350 cursor-pointer select-none capitalize">
+                    <input
+                      type="checkbox"
+                      checked={val}
+                      onChange={(e) => setter(e.target.checked)}
+                      className="w-4 h-4 rounded bg-zinc-900 border-white/10 text-zinc-100 cursor-pointer accent-zinc-200"
+                      disabled={disabled}
+                    />
+                    {label === 'cd' ? 'CD' : label}
+                  </label>
+                )
+              )}
             </div>
           </div>
 
-          {/* Notes Area */}
-          <div className="space-y-1">
-            <label htmlFor="notes" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-              Notes
-            </label>
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <label htmlFor="notes" className={labelCls}>Notes</label>
             <textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Enter mastering source, comments, or details..."
+              placeholder="e.g., Early pressings, remaster notes…"
               rows={3}
-              className="w-full bg-zinc-950 border border-zinc-800 text-zinc-100 rounded p-2.5 text-sm outline-none focus:border-zinc-650 transition-colors placeholder:text-zinc-650 resize-none"
-              disabled={isLoading}
+              className={`${inputCls} resize-none`}
+              disabled={disabled}
             />
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-zinc-800 hover:bg-zinc-700/80 text-zinc-300 hover:text-zinc-150 py-2.5 px-4 rounded font-semibold text-sm transition-colors"
-              disabled={isLoading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 bg-zinc-100 hover:bg-white text-zinc-950 py-2.5 px-4 rounded font-bold text-sm flex items-center justify-center gap-1.5 transition-colors disabled:opacity-55"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4" />
-                  Add Album
-                </>
-              )}
-            </button>
+          {/* Cover Art URL (optional) */}
+          <div className="space-y-1.5">
+            <label htmlFor="cover_url" className={labelCls}>Artwork URL (optional)</label>
+            <input
+              id="cover_url"
+              type="url"
+              value={coverUrl}
+              onChange={(e) => setCoverUrl(e.target.value)}
+              placeholder="https://…"
+              className={inputCls}
+              disabled={disabled}
+            />
           </div>
         </form>
+
+        {/* Footer */}
+        <div className="px-6 py-5 bg-zinc-950 border-t border-white/5 flex gap-3 flex-shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={disabled}
+            className="flex-1 bg-zinc-900 hover:bg-zinc-800 border border-white/5 text-zinc-350 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={disabled}
+            className="flex-1 bg-zinc-100 hover:bg-white text-zinc-950 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors disabled:opacity-55 shadow-md"
+          >
+            {isLoading ? (
+              <><Loader2 className="w-4.5 h-4.5 animate-spin" />Creating…</>
+            ) : (
+              <><Plus className="w-4 h-4" />Add Album</>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
