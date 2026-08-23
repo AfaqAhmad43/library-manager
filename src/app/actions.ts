@@ -204,6 +204,8 @@ export async function checkAlbumDuplicate(
 export async function moveAlbumsToLibrary(
   ids: string[]
 ): Promise<{ success: boolean; data?: Album[]; error?: string }> {
+  if (!ids.length) return { success: false, error: 'No IDs supplied.' };
+
   try {
     // 1. Fetch all requested records from unsorted
     const { data: unsortedRecords, error: fetchError } = await supabase
@@ -211,11 +213,11 @@ export async function moveAlbumsToLibrary(
       .select('*')
       .in('id', ids);
 
-    if (fetchError || !unsortedRecords) {
-      return { success: false, error: fetchError?.message || 'No records found to move.' };
+    if (fetchError || !unsortedRecords || unsortedRecords.length === 0) {
+      return { success: false, error: fetchError?.message || 'No matching records found in the Unsorted queue.' };
     }
 
-    // 2. Map to format required for insertion
+    // 2. Map to the shape required for insertion (omit unsorted-specific id/created_at)
     const insertData = unsortedRecords.map((r) => ({
       artist:       r.artist,
       album_title:  r.album_title,
@@ -238,14 +240,16 @@ export async function moveAlbumsToLibrary(
       return { success: false, error: insertError.message };
     }
 
-    // 4. Delete successfully copied records from unsorted
+    // 4. Delete ONLY the IDs that were actually fetched (guards against partial fetches)
+    const fetchedIds = unsortedRecords.map((r: any) => r.id as string);
     const { error: deleteError } = await supabase
       .from('unsorted')
       .delete()
-      .in('id', ids);
+      .in('id', fetchedIds);
 
     if (deleteError) {
       console.error('Warning: Failed to clean unsorted backlog after batch migration:', deleteError);
+      // Non-fatal — records were already inserted into albums; log and continue.
     }
 
     return { success: true, data: insertedRecords as Album[] };

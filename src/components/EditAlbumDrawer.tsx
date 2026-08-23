@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Check, Loader2, Link, ArrowRightLeft, Copy } from 'lucide-react';
 import { updateAlbum, moveAlbumToLibrary } from '@/app/actions';
 import { Album, Scope } from '@/types';
@@ -36,18 +36,37 @@ export default function EditAlbumDrawer({
   const [isMoving, setIsMoving]       = useState(false);
   const [error, setError]             = useState<string | null>(null);
   const [success, setSuccess]         = useState(false);
-  
+
   // Warning confirmation for duplicates
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
 
   // Markdown copy state
   const [copiedMd, setCopiedMd]       = useState(false);
 
-  // Close on Escape
+  // Ref to trap focus inside the drawer panel
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Close on Escape + lock background scroll + focus first input
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && isOpen) onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) onClose();
+    };
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', onKey);
+      // Focus first focusable element inside the panel after animation settles
+      const timer = setTimeout(() => {
+        const first = panelRef.current?.querySelector<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        first?.focus();
+      }, 80);
+      return () => {
+        clearTimeout(timer);
+        document.body.style.overflow = '';
+        window.removeEventListener('keydown', onKey);
+      };
+    }
   }, [isOpen, onClose]);
 
   // Populate form when album changes
@@ -110,20 +129,23 @@ export default function EditAlbumDrawer({
   const handleMove = async (force = false) => {
     setError(null);
     setSuccess(false);
-    
-    // Prevent and trigger duplicate check first
+
+    // Run duplicate check first (unless forced)
     if (!force) {
       setIsMoving(true);
+      let isDuplicate = false;
       try {
         const { checkAlbumDuplicate } = await import('@/app/actions');
-        const isDuplicate = await checkAlbumDuplicate(artist, albumTitle);
-        if (isDuplicate) {
-          setShowDuplicateWarning(true);
-          setIsMoving(false);
-          return;
-        }
+        isDuplicate = await checkAlbumDuplicate(artist, albumTitle);
       } catch (err: any) {
         console.error('Duplicate check error:', err);
+      }
+
+      if (isDuplicate) {
+        // Bug fix: reset isMoving before early return so the button re-enables
+        setIsMoving(false);
+        setShowDuplicateWarning(true);
+        return;
       }
     }
 
@@ -161,34 +183,32 @@ export default function EditAlbumDrawer({
 - **Format Holdings:** ${formats}
 ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
 
-    navigator.clipboard.writeText(md);
+    navigator.clipboard.writeText(md).catch(console.error);
     setCopiedMd(true);
     setTimeout(() => setCopiedMd(false), 2050);
   };
 
   const inputCls =
-    'w-full bg-zinc-900 border border-white/5 focus:border-zinc-500 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-zinc-500/20 text-zinc-150 transition-all placeholder:text-zinc-600 disabled:opacity-50 font-sans';
+    'w-full bg-zinc-900 border border-white/5 focus:border-zinc-500 rounded-lg p-3 text-sm outline-none focus:ring-1 focus:ring-zinc-500/20 text-zinc-100 transition-all placeholder:text-zinc-600 disabled:opacity-50 font-sans';
   const labelCls =
     'text-[10px] font-bold text-zinc-500 uppercase tracking-widest';
   const disabled = isLoading || isMoving || success;
 
   return (
     <>
-      <style jsx global>{`
-        @keyframes drawerSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-        @keyframes drawerFadeIn  { from { opacity: 0; }               to { opacity: 1; } }
-        .drawer-slide { animation: drawerSlideIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
-        .drawer-fade  { animation: drawerFadeIn  0.22s ease-out forwards; }
-      `}</style>
-
-      {/* Backdrop overlay */}
+      {/* Backdrop overlay — CSS keyframes declared in globals.css */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Album Details"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-end drawer-fade"
       >
         {/* Panel surface */}
-        <div className="bg-zinc-950 border-l border-white/10 w-full max-w-md h-full flex flex-col shadow-2xl drawer-slide">
-
+        <div
+          ref={panelRef}
+          className="bg-zinc-950 border-l border-white/10 w-full max-w-md h-full flex flex-col shadow-2xl drawer-slide"
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-white/5 flex-shrink-0">
             <div>
@@ -222,8 +242,8 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
 
             {/* Duplicate Soft Warning Panel */}
             {showDuplicateWarning && (
-              <div className="bg-amber-950/20 border border-amber-900/30 text-amber-400 p-4 rounded-lg text-xs space-y-3 animate-fade-in shadow-lg">
-                <p className="font-bold uppercase tracking-wider text-[10px] text-amber-350">Duplicate Entry Detected</p>
+              <div className="bg-amber-950/20 border border-amber-900/30 text-amber-400 p-4 rounded-lg text-xs space-y-3 shadow-lg">
+                <p className="font-bold uppercase tracking-wider text-[10px]">Duplicate Entry Detected</p>
                 <p className="leading-relaxed">
                   An album titled &ldquo;{albumTitle}&rdquo; by &ldquo;{artist}&rdquo; already exists in your Main Library.
                 </p>
@@ -231,7 +251,7 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
                   <button
                     type="button"
                     onClick={() => handleMove(true)}
-                    className="bg-amber-500 hover:bg-amber-450 text-zinc-950 px-3 py-1.5 rounded font-bold transition-colors"
+                    className="bg-amber-500 hover:bg-amber-400 text-zinc-950 px-3 py-1.5 rounded font-bold transition-colors"
                   >
                     Move Anyway
                   </button>
@@ -303,7 +323,7 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
                 <button
                   type="button"
                   onClick={handleCopyMarkdown}
-                  className="text-[10px] bg-zinc-900 hover:bg-zinc-800 text-zinc-350 px-2.5 py-1.5 rounded flex items-center gap-1 transition-colors border border-white/5"
+                  className="text-[10px] bg-zinc-900 hover:bg-zinc-800 text-zinc-400 px-2.5 py-1.5 rounded flex items-center gap-1 transition-colors border border-white/5"
                 >
                   {copiedMd ? (
                     <>
@@ -345,7 +365,7 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
                 disabled={disabled}
               />
               {coverUrl && (
-                /* eslint-disable-next-line @next/next/no-img-element */
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={coverUrl}
                   alt="Cover preview"
@@ -364,7 +384,7 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
                 type="button"
                 onClick={() => handleMove(false)}
                 disabled={disabled}
-                className="w-full bg-violet-650 hover:bg-violet-600 text-white py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-sm"
+                className="w-full bg-violet-700 hover:bg-violet-600 text-white py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-sm"
               >
                 {isMoving ? (
                   <>
@@ -380,12 +400,20 @@ ${notes.trim() ? `\n**Notes:**\n${notes.trim()}` : ''}`;
               </button>
             )}
             <div className="flex gap-3 w-full">
-              <button type="button" onClick={onClose} disabled={disabled}
-                className="flex-1 bg-zinc-900 hover:bg-zinc-800 border border-white/5 text-zinc-350 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-50">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={disabled}
+                className="flex-1 bg-zinc-900 hover:bg-zinc-800 border border-white/5 text-zinc-400 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
+              >
                 Cancel
               </button>
-              <button type="submit" form="" onClick={handleSubmit} disabled={disabled}
-                className="flex-1 bg-zinc-100 hover:bg-white text-zinc-950 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors disabled:opacity-55 shadow-md">
+              <button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={disabled}
+                className="flex-1 bg-zinc-100 hover:bg-white text-zinc-950 py-2.5 px-4 rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-md"
+              >
                 {isLoading ? (
                   <><Loader2 className="w-4 h-4 animate-spin" />Saving…</>
                 ) : success ? (

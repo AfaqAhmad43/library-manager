@@ -32,9 +32,10 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
   const [activeTab, setActiveTab] = useState<ActiveTab>('albums');
   const [libraryAlbums, setLibraryAlbums] = useState<Album[]>(initialAlbums);
   const [unsortedAlbums, setUnsortedAlbums] = useState<Album[]>([]);
-  
+
   const [loadingData, setLoadingData] = useState(false);
   const [dbError, setDbError] = useState<string | undefined>(initialDbError);
+  const [retryCount, setRetryCount] = useState(0); // trigger manual re-fetch
 
   // Search, Filter & Sort states
   const [searchQuery, setSearchQuery] = useState('');
@@ -57,62 +58,80 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
   // Focus ref for search shortcut
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Pre-fetch Unsorted queue in the background on mount
+  // Guard: track whether we have hydrated from localStorage yet.
+  // This prevents the write-effects from firing before the read-effect and
+  // overwriting stored values with the in-memory defaults on first mount.
+  const hydratedRef = useRef(false);
+
+  // Pre-fetch Unsorted queue in the background on mount (re-runs on retryCount)
   useEffect(() => {
     const prefetchUnsorted = async () => {
       try {
         const res = await getAlbums('unsorted');
         if (res.success) {
           setUnsortedAlbums(res.data);
+          setDbError(undefined);
+        } else {
+          setDbError(res.error);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to prefetch unsorted backlog:', err);
+        setDbError(err?.message || 'Network error while loading unsorted queue.');
       }
     };
     prefetchUnsorted();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryCount]);
 
-  // Hydrate state from localStorage safely
+  // ── Hydrate state from localStorage once on mount ──────────────────────
   useEffect(() => {
     try {
-      const savedTab = localStorage.getItem('lib_activeTab');
+      const savedTab    = localStorage.getItem('lib_activeTab');
       const savedSearch = localStorage.getItem('lib_searchQuery');
-      const savedScope = localStorage.getItem('lib_selectedScope');
+      const savedScope  = localStorage.getItem('lib_selectedScope');
       const savedFormat = localStorage.getItem('lib_selectedFormat');
-      const savedSort = localStorage.getItem('lib_sortBy');
+      const savedSort   = localStorage.getItem('lib_sortBy');
 
-      if (savedTab) setActiveTab(savedTab as ActiveTab);
+      if (savedTab    && ['albums','unsorted','analytics'].includes(savedTab)) setActiveTab(savedTab as ActiveTab);
       if (savedSearch) setSearchQuery(savedSearch);
-      if (savedScope) setSelectedScope(savedScope);
-      if (savedFormat) setSelectedFormat(savedFormat as FormatFilter);
-      if (savedSort) setSortBy(savedSort);
+      if (savedScope)  setSelectedScope(savedScope);
+      if (savedFormat && ['ALL','DIGITAL','CD','VINYL','PHYSICAL','DIGITAL_ONLY'].includes(savedFormat))
+        setSelectedFormat(savedFormat as FormatFilter);
+      if (savedSort)   setSortBy(savedSort);
     } catch (e) {
       console.warn('Failed to load storage state:', e);
+    } finally {
+      hydratedRef.current = true;
     }
   }, []);
 
-  // Sync state to localStorage
+  // ── Sync state to localStorage (only after hydration to prevent overwriting) ──
   useEffect(() => {
+    if (!hydratedRef.current) return;
     localStorage.setItem('lib_activeTab', activeTab);
   }, [activeTab]);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     localStorage.setItem('lib_searchQuery', searchQuery);
   }, [searchQuery]);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     localStorage.setItem('lib_selectedScope', selectedScope);
   }, [selectedScope]);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     localStorage.setItem('lib_selectedFormat', selectedFormat);
   }, [selectedFormat]);
 
   useEffect(() => {
+    if (!hydratedRef.current) return;
     localStorage.setItem('lib_sortBy', sortBy);
   }, [sortBy]);
 
-  // Reset pagination on filter changes
+  // Reset pagination on filter/tab changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, selectedScope, selectedFormat, sortBy, activeTab]);
@@ -375,18 +394,24 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     <div className="space-y-6">
       {/* DB Connection Error Banner */}
       {dbError && (
-        <div className="bg-amber-950/20 border border-amber-900/30 text-amber-400 p-4 rounded-lg flex items-start gap-3">
+        <div className="bg-amber-950/20 border border-amber-900/30 text-amber-400 p-4 rounded-lg flex items-start gap-3 animate-fade-in">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <div className="text-sm">
+          <div className="text-sm flex-1">
             <p className="font-bold">Database Warning</p>
             <p className="mt-1">Failed to connect or query Supabase. Details:</p>
-            <code className="block mt-1.5 p-2 bg-zinc-950/70 rounded font-mono text-zinc-300 border border-zinc-850/50 break-all text-xs">
+            <code className="block mt-1.5 p-2 bg-zinc-950/70 rounded font-mono text-zinc-300 border border-zinc-800/50 break-all text-xs">
               {dbError}
             </code>
             <p className="mt-2 text-xs text-zinc-500">
-              Please check your environment variables and verify SQL schema.
+              Please check your environment variables and verify your SQL schema and RLS policies.
             </p>
           </div>
+          <button
+            onClick={() => setRetryCount((c) => c + 1)}
+            className="flex-shrink-0 mt-0.5 text-xs bg-amber-900/30 hover:bg-amber-900/50 border border-amber-800/40 text-amber-300 px-3 py-1.5 rounded-lg font-bold uppercase tracking-wider transition-colors"
+          >
+            Retry
+          </button>
         </div>
       )}
 

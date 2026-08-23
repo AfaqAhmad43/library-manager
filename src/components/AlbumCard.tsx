@@ -84,11 +84,19 @@ export default function AlbumCard({ album, onClick, table, isSelected, onSelect 
   const [imgError, setImgError] = useState(false);
   const [loading, setLoading]   = useState(!album.cover_url);
 
+  // Reset cacheSaved whenever the album identity changes so that
+  // a newly rendered card (after album.id changes) can persist its URL.
   const cacheSaved = useRef(!!album.cover_url);
+  const prevAlbumId = useRef(album.id);
+  if (prevAlbumId.current !== album.id) {
+    prevAlbumId.current = album.id;
+    cacheSaved.current = !!album.cover_url;
+  }
 
   useEffect(() => {
     if (album.cover_url) {
       setArtUrl(album.cover_url);
+      setImgError(false);
       setLoading(false);
       return;
     }
@@ -98,6 +106,7 @@ export default function AlbumCard({ album, onClick, table, isSelected, onSelect 
     (async () => {
       setLoading(true);
       setImgError(false);
+      setArtUrl(null);
 
       let resolvedUrl: string | null = await fetchItunesArt(album.artist, album.album_title);
 
@@ -109,9 +118,10 @@ export default function AlbumCard({ album, onClick, table, isSelected, onSelect 
 
       if (resolvedUrl) {
         setArtUrl(resolvedUrl);
+        // Guard persist call: check cancelled again after the async persist
         if (!cacheSaved.current) {
           const saved = await persistCoverUrl(table, album.id, resolvedUrl);
-          if (saved) {
+          if (!cancelled && saved) {
             cacheSaved.current = true;
           }
         }
@@ -119,7 +129,7 @@ export default function AlbumCard({ album, onClick, table, isSelected, onSelect 
         setArtUrl(null);
       }
 
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     })();
 
     return () => {
