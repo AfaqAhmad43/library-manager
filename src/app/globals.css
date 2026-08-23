@@ -17,3 +17,31 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui;
 }
+
+/* ── Drawer / Modal Keyframe Animations ───────────────────────── */
+@keyframes drawerSlideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes drawerFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.drawer-slide {
+  animation: drawerSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.drawer-fade {
+  animation: drawerFadeIn 0.22s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out both;
+}

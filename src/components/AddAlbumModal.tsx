@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { addAlbum } from '@/app/actions';
 import { Album, Scope } from '@/types';
@@ -26,6 +26,8 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded, table }: 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const firstInputRef = useRef<HTMLInputElement>(null);
+
   // Close on Escape key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -36,6 +38,20 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded, table }: 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  // Lock background scroll and focus the first input on modal open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      const timer = setTimeout(() => {
+        firstInputRef.current?.focus();
+      }, 80);
+      return () => {
+        clearTimeout(timer);
+        document.body.style.overflow = '';
+      };
+    }
+  }, [isOpen]);
 
   // Reset form fields when modal opens
   useEffect(() => {
@@ -138,6 +154,7 @@ export default function AddAlbumModal({ isOpen, onClose, onAlbumAdded, table }: 
               Artist <span className="text-red-500">*</span>
             </label>
             <input
+              ref={firstInputRef}
               id="artist"
               type="text"
               required
