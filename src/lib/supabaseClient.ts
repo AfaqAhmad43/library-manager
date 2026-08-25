@@ -1,35 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
-/**
- * Client-side Supabase instance for use in Client Components.
- * Uses the same public env vars — safe to ship to the browser.
- */
-const supabaseUrl     = process.env.NEXT_PUBLIC_SUPABASE_URL     || 'https://placeholder-url.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
-
-export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-
-/**
- * Persist a resolved artwork URL directly to the database from the browser.
- * Returns true on success, false on failure (with a console error).
- */
-export async function persistCoverUrl(
-  table: 'albums' | 'unsorted',
-  id: string,
-  cover_url: string
-): Promise<boolean> {
-  console.log(`[CoverArt] Persisting cover_url for album ${id} in table '${table}':`, cover_url);
-
-  const { error } = await supabaseClient
-    .from(table)
-    .update({ cover_url })
-    .eq('id', id);
-
-  if (error) {
-    console.error(`[CoverArt] ❌ Failed to persist cover_url for album ${id} in table '${table}':`, error.message, error);
-    return false;
-  }
-
-  console.log(`[CoverArt] ✅ Successfully cached cover_url for album ${id} in table '${table}'`);
-  return true;
-}
+// Deprecated: All Supabase database writes and reads have been moved to server-side Server Actions.
+// This client-side client is no longer used or needed to maintain security and enforce Row Level Security (RLS).
+export {};
