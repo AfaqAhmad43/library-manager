@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, FileText, FileAudio, Disc } from 'lucide-react';
 import { Album } from '@/types';
-import { persistCoverUrl } from '@/lib/supabaseClient';
+import { persistCoverUrl } from '@/app/actions';
 
 interface AlbumCardProps {
   album: Album;

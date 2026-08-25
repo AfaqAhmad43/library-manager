@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { getSupabaseServerClient } from '@/lib/supabase';
 import { Album, Scope } from '@/types';
 
 // ─────────────────────────────────────────────
@@ -14,6 +14,7 @@ export async function getAlbums(
   error?: string;
 }> {
   try {
+    const supabase = await getSupabaseServerClient();
     const { data, error } = await supabase
       .from(table)
       .select('*')
@@ -53,6 +54,7 @@ export async function addAlbum(
     if (!input.artist.trim())       return { success: false, error: 'Artist name is required.' };
     if (!input.album_title.trim())  return { success: false, error: 'Album title is required.' };
 
+    const supabase = await getSupabaseServerClient();
     const { data, error } = await supabase
       .from(table)
       .insert([{
@@ -101,6 +103,7 @@ export async function updateAlbum(
     if (input.notes       !== undefined) patch.notes       = input.notes.trim();
     if (input.cover_url   !== undefined) patch.cover_url   = input.cover_url.trim();
 
+    const supabase = await getSupabaseServerClient();
     const { data, error } = await supabase
       .from(table)
       .update(patch)
@@ -122,6 +125,8 @@ export async function moveAlbumToLibrary(
   id: string
 ): Promise<{ success: boolean; data?: Album; error?: string }> {
   try {
+    const supabase = await getSupabaseServerClient();
+    
     // 1. Fetch record from unsorted
     const { data: unsortedAlbum, error: fetchError } = await supabase
       .from('unsorted')
@@ -173,13 +178,14 @@ export async function moveAlbumToLibrary(
 }
 
 // ─────────────────────────────────────────────
-//  CHECK ALBUUM DUPLICATE (Main Library)
+//  CHECK ALBUM DUPLICATE (Main Library)
 // ─────────────────────────────────────────────
 export async function checkAlbumDuplicate(
   artist: string,
   title: string
 ): Promise<boolean> {
   try {
+    const supabase = await getSupabaseServerClient();
     const { data, error } = await supabase
       .from('albums')
       .select('id')
@@ -207,6 +213,8 @@ export async function moveAlbumsToLibrary(
   if (!ids.length) return { success: false, error: 'No IDs supplied.' };
 
   try {
+    const supabase = await getSupabaseServerClient();
+
     // 1. Fetch all requested records from unsorted
     const { data: unsortedRecords, error: fetchError } = await supabase
       .from('unsorted')
@@ -265,6 +273,7 @@ export async function deleteUnsortedAlbums(
   ids: string[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const supabase = await getSupabaseServerClient();
     const { error } = await supabase
       .from('unsorted')
       .delete()
@@ -287,6 +296,7 @@ export async function getLibraryBackup(): Promise<{
   error?: string;
 }> {
   try {
+    const supabase = await getSupabaseServerClient();
     const { data: albums, error: albumError } = await supabase
       .from('albums')
       .select('*')
@@ -311,5 +321,33 @@ export async function getLibraryBackup(): Promise<{
     };
   } catch (err: any) {
     return { success: false, error: err.message || 'Unexpected error compiling backup.' };
+  }
+}
+
+// ─────────────────────────────────────────────
+//  PERSIST COVER URL (Server Action)
+// ─────────────────────────────────────────────
+export async function persistCoverUrl(
+  table: 'albums' | 'unsorted',
+  id: string,
+  coverUrl: string
+): Promise<boolean> {
+  console.log(`[CoverArt] Persisting cover_url for album ${id} in table '${table}':`, coverUrl);
+  try {
+    const supabase = await getSupabaseServerClient();
+    const { error } = await supabase
+      .from(table)
+      .update({ cover_url: coverUrl })
+      .eq('id', id);
+
+    if (error) {
+      console.error(`[CoverArt] ❌ Failed to persist cover_url for album ${id} in table '${table}':`, error.message);
+      return false;
+    }
+    console.log(`[CoverArt] ✅ Successfully cached cover_url for album ${id} in table '${table}'`);
+    return true;
+  } catch (err: any) {
+    console.error(`[CoverArt] ❌ Stderr exception during cover_url persist:`, err.message || err);
+    return false;
   }
 }

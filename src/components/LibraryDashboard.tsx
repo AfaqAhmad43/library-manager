@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, FilterX, HelpCircle, AlertCircle, Loader2, ArrowRightLeft, Trash2, CheckSquare } from 'lucide-react';
+import { Search, Plus, FilterX, HelpCircle, AlertCircle, Loader2, ArrowRightLeft, Trash2, CheckSquare, LogOut } from 'lucide-react';
 import { Album, Scope } from '@/types';
 import { getAlbums, moveAlbumsToLibrary, deleteUnsortedAlbums, getLibraryBackup } from '@/app/actions';
+import { signOut } from '@/lib/auth';
 import StatsBar from './StatsBar';
 import AlbumCard from './AlbumCard';
 import AddAlbumModal from './AddAlbumModal';
@@ -390,6 +391,12 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
     }
   };
 
+  const handleLogout = async () => {
+    if (window.confirm('Are you sure you want to log out?')) {
+      await signOut();
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* DB Connection Error Banner */}
@@ -447,6 +454,14 @@ export default function LibraryDashboard({ initialAlbums, dbError: initialDbErro
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Album
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-red-950/20 hover:bg-red-900/35 border border-red-900/40 text-red-400 px-3 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-colors flex items-center gap-1.5"
+                title="Log out of the archive"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Logout
               </button>
             </div>
           </div>

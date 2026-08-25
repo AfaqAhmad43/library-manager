@@ -18,17 +18,25 @@ create table if not exists public.albums (
 -- Enable Row Level Security (RLS) on albums
 alter table public.albums enable row level security;
 
--- Policies to allow public read/write/update on albums
-create policy "Allow public read access"   on public.albums for select using (true);
-create policy "Allow public insert access" on public.albums for insert with check (true);
-create policy "Allow public update access" on public.albums for update using (true) with check (true);
+-- Remove public access policies if they exist
+drop policy if exists "Allow public read access"   on public.albums;
+drop policy if exists "Allow public insert access" on public.albums;
+drop policy if exists "Allow public update access" on public.albums;
+drop policy if exists "Enforce authorized user check" on public.albums;
 
--- Explicitly grant permissions to anon and authenticated roles
-grant usage on schema public to anon, authenticated;
-grant select, insert, update on table public.albums to anon, authenticated;
+-- Policies to allow access ONLY to the authorized single user (superpsycho4347@gmail.com)
+create policy "Enforce authorized user check" on public.albums
+  for all
+  to authenticated
+  using (auth.jwt() ->> 'email' = 'superpsycho4347@gmail.com')
+  with check (auth.jwt() ->> 'email' = 'superpsycho4347@gmail.com');
 
--- Migration: add cover_url to an existing albums table (safe to run)
-alter table public.albums add column if not exists cover_url text;
+-- Explicitly grant permissions to authenticated role (block anonymous users)
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.albums to authenticated;
+
+-- Revoke permissions from anonymous users to ensure complete lockdown
+revoke select, insert, update, delete on table public.albums from anon;
 
 
 -- ============================================================
@@ -51,11 +59,22 @@ create table if not exists public.unsorted (
 -- Enable Row Level Security (RLS) on unsorted
 alter table public.unsorted enable row level security;
 
--- Policies to allow public read/write/update on unsorted
-create policy "Allow public read access"   on public.unsorted for select using (true);
-create policy "Allow public insert access" on public.unsorted for insert with check (true);
-create policy "Allow public update access" on public.unsorted for update using (true) with check (true);
-create policy "Allow public delete access" on public.unsorted for delete using (true); -- needed for moving records to albums
+-- Remove public access policies if they exist
+drop policy if exists "Allow public read access"   on public.unsorted;
+drop policy if exists "Allow public insert access" on public.unsorted;
+drop policy if exists "Allow public update access" on public.unsorted;
+drop policy if exists "Allow public delete access" on public.unsorted;
+drop policy if exists "Enforce authorized user check" on public.unsorted;
 
--- Explicitly grant permissions to anon and authenticated roles
-grant select, insert, update, delete on table public.unsorted to anon, authenticated;
+-- Policies to allow access ONLY to the authorized single user (superpsycho4347@gmail.com)
+create policy "Enforce authorized user check" on public.unsorted
+  for all
+  to authenticated
+  using (auth.jwt() ->> 'email' = 'superpsycho4347@gmail.com')
+  with check (auth.jwt() ->> 'email' = 'superpsycho4347@gmail.com');
+
+-- Explicitly grant permissions to authenticated role (block anonymous users)
+grant select, insert, update, delete on table public.unsorted to authenticated;
+
+-- Revoke permissions from anonymous users to ensure complete lockdown
+revoke select, insert, update, delete on table public.unsorted from anon;
